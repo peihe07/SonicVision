@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic Vision 音樂搜尋</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .track { margin: 10px; display: inline-block; text-align: center; }
+        img { width: 150px; height: 150px; border-radius: 10px; }
+        audio { display: block; margin: 10px auto; }
+    </style>
+</head>
+<body>
+
+    <h1>🎵 音樂搜尋</h1>
+    <input type="text" id="searchQuery" placeholder="輸入歌名或藝人">
+    <button onclick="searchMusic()">搜尋</button>
+
+    <div id="results"></div>
+
+    <script>
+        function searchMusic() {
+            const query = document.getElementById("searchQuery").value;
+            if (!query) {
+                alert("請輸入搜尋關鍵字！");
+                return;
+            }
+
+            console.log("🔎 送出搜尋請求:", `/search?q=${query}`);
+
+            fetch(`/search?q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("📡 API 回應內容:", data);
+
+                    const resultsDiv = document.getElementById("results");
+                    resultsDiv.innerHTML = "";  // 清空之前的搜尋結果
+
+                    if (!Array.isArray(data) || data.length === 0) {
+                        resultsDiv.innerHTML = `<p style="color:red;">沒有找到結果</p>`;
+                        return;
+                    }
+
+                    data.forEach(track => {
+                        const trackDiv = document.createElement("div");
+                        trackDiv.classList.add("track");
+
+                        trackDiv.innerHTML = `
+                            <img src="${track.album_cover}" alt="${track.name}">
+                            <p>${track.name} - ${track.artist}</p>
+                            <audio controls>
+                                <source src="${track.preview_url}" type="audio/mpeg">
+                            </audio>
+                            <br>
+                            <a href="${track.spotify_url}" target="_blank">Spotify 播放</a>
+                        `;
+
+                        resultsDiv.appendChild(trackDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error("❌ API 錯誤:", error);
+                    alert("搜尋發生錯誤，請稍後再試。");
+                });
+        }
+    </script>
+
+</body>
+</html>
