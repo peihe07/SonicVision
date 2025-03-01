@@ -4,7 +4,7 @@ import router from './router';
 
 
 // 🔹 引入 Bootstrap CSS
-import 'https://bootswatch.com/5/lux/bootstrap.min.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 // 🔹 引入 Bootstrap JavaScript（包含 Modal、Navbar 等功能）
 import 'bootstrap';
