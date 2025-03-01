@@ -7,19 +7,18 @@ from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.routers import DefaultRouter
 from django.http import JsonResponse
 
+# 設定 REST Framework ViewSet 路由
 router = DefaultRouter()
 router.register(r'movies', MovieViewSet, basename='movie')
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('api/music/', include('music.urls')),
-    path('api/movies/', include('movies.urls')), 
-    path('api/users/', include('users.urls')),  
     path('admin/', admin.site.urls),
-    path('api/token/', obtain_auth_token, name='api_token_auth'),  # 取得 Token
-    path('api/users/', include('users.urls')),
-    path('api/', include('api.urls')),
-]
 
-def Home(request):
-    return HttpResponse("Welcome to Sonic Vision!")
+    # API 路由
+    path('api/music/', include('music.urls')),
+    path('api/movies/', include('movies.urls')),  # 確保 movies.urls 存在
+    path('api/users/', include('users.urls')),  
+    path('api/', include(router.urls)),  # 註冊 ViewSet 路由
+    path('api/token/', obtain_auth_token, name='api_token_auth'),  # Token 驗證
+]

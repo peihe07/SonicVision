@@ -20,23 +20,28 @@ def get_movie_list(request):
     return Response(serializer.data)
 
 # 搜尋 TMDB 電影
-@api_view(['GET'])
+@api_view(["GET"])
 def search_tmdb_movie(request):
-    query = request.GET.get("query", "")  # 從 request.GET 取得查詢參數
-
+    query = request.GET.get("query", "")
     if not query:
-        return Response({"error": "Query parameter is required"}, status=400)
+        return Response({"error": "請提供 query 參數"}, status=400)
 
     params = {
         "api_key": TMDB_API_KEY,
         "query": query
     }
-    response = requests.get(TMDB_API_URL, params=params)
 
-    if response.status_code != 200:
-        return Response({"error": "Failed to fetch data from TMDB"}, status=response.status_code)
+    print(f"📡 發送請求至 TMDB: {TMDB_API_URL}，參數: {params}")
 
-    return Response(response.json())
+    try:
+        response = requests.get(TMDB_API_URL, params=params, timeout=5)
+        response.raise_for_status()
+        print(f"✅ TMDB 回應: {response.json()}")  # 🔹 確保 TMDB API 回應內容
+
+        return Response(response.json())  # ✅ 回傳 TMDB 數據
+    except requests.exceptions.RequestException as e:
+        print(f"❌ TMDB 請求失敗: {str(e)}")
+        return Response({"error": f"無法連接 TMDB: {str(e)}"}, status=500)
 
 # 查詢 TMDB 電影詳情
 @api_view(['GET'])
