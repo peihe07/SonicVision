@@ -68,6 +68,8 @@ REST_FRAMEWORK = {
     )
 }
 
+
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # 確保這一行在最前面
     'django.middleware.security.SecurityMiddleware',
@@ -78,6 +80,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 
 ROOT_URLCONF = 'sonic_vision.urls'
 

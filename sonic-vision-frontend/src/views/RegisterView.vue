@@ -1,46 +1,34 @@
 <template>
-    <div class="p-4 max-w-md mx-auto">
-      <h1 class="text-2xl font-bold mb-4">註冊帳號</h1>
-      
-      <input v-model="username" placeholder="帳號" class="border p-2 w-full mb-2" />
-      <input v-model="email" placeholder="電子郵件" class="border p-2 w-full mb-2" />
-      <input v-model="password" type="password" placeholder="密碼" class="border p-2 w-full mb-2" />
-      
-      <button @click="register" class="bg-blue-500 text-white px-4 py-2 rounded w-full">註冊</button>
-      
-      <p v-if="message" class="mt-4 text-green-600">{{ message }}</p>
-      <p v-if="error" class="mt-4 text-red-600">{{ error }}</p>
-    </div>
-  </template>
-  
-  <script>
-  import { registerUser } from "../api.js";
-  
-  export default {
-    data() {
-      return {
-        username: "",
-        email: "",
-        password: "",
-        message: "",
-        error: ""
-      };
-    },
-    methods: {
-      async register() {
-        try {
-          this.message = "";
-          this.error = "";
-          await registerUser({
-            username: this.username,
-            email: this.email,
-            password: this.password
-          });
-          this.message = "註冊成功！請登入";
-        } catch (err) {
-          this.error = "註冊失敗，請檢查輸入資料";
-        }
-      }
-    }
-  };
-  </script>
+  <div class="container">
+    <h2>註冊</h2>
+    <form @submit.prevent="register">
+      <input v-model="username" placeholder="使用者名稱" required class="form-control mb-2" />
+      <input v-model="password" type="password" placeholder="密碼" required class="form-control mb-2" />
+      <button type="submit" class="btn btn-primary">註冊</button>
+    </form>
+    <p>已經有帳號？<RouterLink to="/login">登入</RouterLink></p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from "vue";
+import axios from "axios";
+import { useRouter } from "vue-router";
+
+const username = ref("");
+const password = ref("");
+const router = useRouter();
+
+const register = async () => {
+  try {
+    await axios.post("http://127.0.0.1:8000/api/register/", {
+      username: username.value,
+      password: password.value
+    });
+    alert("註冊成功，請登入！");
+    router.push("/login");
+  } catch (error) {
+    alert("註冊失敗：" + error.response.data.error);
+  }
+};
+</script>
