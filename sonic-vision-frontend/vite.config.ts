@@ -10,9 +10,18 @@ export default defineConfig(({ mode }) => ({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000", // ✅ 轉發 `/api/` 請求至 Django
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   build: {
     emptyOutDir: true,
     outDir: "dist",  // ✅ 確保 Vite build 後輸出到 `dist/`
   },
-  base: mode === "development" ? "/" : "/static/",  
+  base: mode === "development" ? "/" : "/static/",
 }));

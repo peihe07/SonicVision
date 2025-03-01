@@ -3,19 +3,17 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
+from main_app.views import index, search_tmdb
 import os
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # 🔹 API 路由
     path('api/users/', include('users.urls')),
     path('api/movies/', include('movies.urls')),
     path("api/music/", include("music.urls")),
     path('api/auth/', include('users.urls')),
-
-    # 🔹 讓 Django 提供 Vue 的 `index.html`
-    re_path(r"^.*$", TemplateView.as_view(template_name="index.html"), name="home"),
+    path('api/search-tmdb/', search_tmdb, name='search_tmdb'),  # API 路由
+    re_path(r'^(?!api/).*$', index, name='index'),  # Vue 處理前端路由
 
 ]
 if settings.DEBUG:
