@@ -38,6 +38,9 @@ def get_spotify_access_token():
     else:
         return None
 
+def music_list(request):
+    return JsonResponse({"music": []})  # 這是一個簡單的測試回應
+
 @api_view(['GET'])
 def explore_music(request):
     """

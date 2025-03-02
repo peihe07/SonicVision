@@ -52,3 +52,6 @@ def user_profile(request):
         "email": request.user.email,
         "date_joined": request.user.date_joined,
     })
+
+def user_list(request):
+    return JsonResponse({"users": []})

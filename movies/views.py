@@ -44,6 +44,8 @@ class SearchTMDBView(APIView):
         query = request.GET.get('query', '')
         return Response({"message": f"Searching for {query}"})
 
+def movie_list(request):
+    return JsonResponse({"movies": []})
 
 # 獲取本地資料庫電影清單
 @api_view(['GET'])

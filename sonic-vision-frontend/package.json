@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "rm -rf dist && vite",
-    "build": "vite build"
+    "build": "vite build",
+    "build:watch": "nodemon --watch src --exec \"npm run build\""
   },
   "dependencies": {
     "axios": "^1.8.1",

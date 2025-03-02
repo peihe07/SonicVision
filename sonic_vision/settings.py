@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import environ
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()
 
@@ -117,10 +118,18 @@ STATICFILES_DIRS = [
 # 🔹 讓 Django 伺服靜態文件（生產環境可能要用 Nginx）
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [FRONTEND_DIST],  # ✅ 確保 Django 能找到 Vue 的 index.html
+        'DIRS': [os.path.join(BASE_DIR, 'sonic-vision-frontend', 'dist')],  # 這裡要指向 Vue 打包後的檔案
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

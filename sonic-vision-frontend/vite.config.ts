@@ -20,7 +20,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    emptyOutDir: true,
     outDir: "dist",  // ✅ 確保 Vite build 後輸出到 `dist/`
   },
   base: mode === "development" ? "/" : "/static/",

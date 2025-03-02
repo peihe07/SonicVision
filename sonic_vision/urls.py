@@ -8,10 +8,11 @@ import os
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("api/", include("main_app.api_urls")),
     path('api/users/', include('users.urls')),
+    path('api/auth/', include('auth.urls')), # JWT 路由
     path('api/movies/', include('movies.urls')),
     path("api/music/", include("music.urls")),
-    path('api/auth/', include('users.urls')),
     path('api/search-tmdb/', search_tmdb, name='search_tmdb'),  # API 路由
     re_path(r'^(?!api/).*$', index, name='index'),  # Vue 處理前端路由
 
