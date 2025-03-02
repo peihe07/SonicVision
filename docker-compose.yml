@@ -4,12 +4,12 @@ services:
   db:
     image: postgres
     restart: always
-    environment:
-      POSTGRES_DB: sonicvision
-      POSTGRES_USER: sonicvision_user
-      POSTGRES_PASSWORD: yourpassword
+    env_file:
+      - .env  # ✅ 讀取環境變數
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   web:
     build: .
@@ -20,3 +20,8 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    env_file:
+      - .env  # ✅ 讓 Django 也讀取 .env
+
+volumes:
+  postgres_data:

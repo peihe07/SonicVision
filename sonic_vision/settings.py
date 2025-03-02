@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -32,16 +32,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 env =environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+# 資料庫設定
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432'),
+        'NAME': env('POSTGRES_DB', default='sonicvision_db'),
+        'USER': env('POSTGRES_USER', default='sonicvision_user'),
+        'PASSWORD': env('POSTGRES_PASSWORD', default='your_secure_password'),
+        'HOST': env('POSTGRES_HOST', default='db'),
+        'PORT': env('POSTGRES_PORT', default='5432'),
     }
 }
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
