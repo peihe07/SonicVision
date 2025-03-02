@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from dotenv import load_dotenv
 import os
+from django.http import JsonResponse
 
 # TMDB API 設定
 load_dotenv()
@@ -54,30 +55,23 @@ def get_movie_list(request):
 # 搜尋 TMDB 電影
 @api_view(["GET"])
 def search_tmdb_movie(request):
-    query = request.GET.get("query", "")
-    year = request.GET.get("year", "")
-    language = request.GET.get("language", "en-US")  # 預設英文
-    include_adult = request.GET.get("include_adult", "false")
-    region = request.GET.get("region", "")
-
+    query = request.GET.get("query")
     if not query:
-        return Response({"error": "請提供 query 參數"}, status=400)
+        return JsonResponse({"error": "缺少 query 參數"}, status=400)
 
-    params = {
-        "api_key": TMDB_API_KEY,
-        "query": query,
-        "year": year,
-        "language": language,
-        "include_adult": include_adult,
-        "region": region
-    }
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}&language=zh-TW"
+    response = requests.get(url)
 
-    try:
-        response = requests.get(TMDB_API_URL, params=params, timeout=5)
-        response.raise_for_status()
-        return Response(response.json())  # ✅ 回傳 TMDB 數據
-    except requests.exceptions.RequestException as e:
-        return Response({"error": f"無法連接 TMDB: {str(e)}"}, status=500)
+    if response.status_code != 200:
+        return JsonResponse({"error": "TMDB API 請求失敗"}, status=response.status_code)
+
+    data = response.json()
+
+    # 🛠️ 確保返回 `results` 陣列
+    if "results" not in data:
+        return JsonResponse({"error": "TMDB 回應異常", "data": data}, status=500)
+
+    return JsonResponse({"results": data["results"]}, safe=False)
     
 # 查詢 TMDB 電影詳情
 @api_view(['GET'])
