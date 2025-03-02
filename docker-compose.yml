@@ -2,26 +2,50 @@ version: '3.8'
 
 services:
   db:
-    image: postgres
+    image: postgres:17  # ✅ 使用較新的 PostgreSQL 版本
     restart: always
     env_file:
-      - .env  # ✅ 讀取環境變數
+      - .env  # ✅ 使用 .env
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:  # ✅ 確保 PostgreSQL 準備好
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 sonic_vision.wsgi:application"
     volumes:
       - .:/app
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy  # ✅ 等待 PostgreSQL 準備好
     env_file:
-      - .env  # ✅ 讓 Django 也讀取 .env
+      - .env  # ✅ 讀取環境變數
+    restart: always  # ✅ 確保 Django 重新啟動
 
+  frontend:
+    build:
+      context: ./sonic-vision-frontend 
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./sonic-vision-frontend:/app
+      - /app/node_modules
+    depends_on:
+      - web
+    command: ["npm", "run", "dev"]
+    environment:
+      - VITE_API_URL=http://localhost:8000
 volumes:
   postgres_data:

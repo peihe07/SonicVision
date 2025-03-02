@@ -11,9 +11,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    host: "0.0.0.0",  // ✅ 讓外部可以訪問
+    port: 5173,  // ✅ 確保使用 5173 端口
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000", // ✅ 轉發 `/api/` 請求至 Django
+        target: "http://web:8000", // ✅ 修正 Django API 的 Proxy 設定
         changeOrigin: true,
         secure: false,
       },

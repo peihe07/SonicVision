@@ -2,9 +2,9 @@ FROM python:3.10
 
 WORKDIR /app
 
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
-RUN python manage.py collectstatic --noinput
-COPY . .
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "sonic_vision.wsgi"]
+COPY . /app/
+
+CMD ["gunicorn", "sonic_vision.wsgi:application", "--bind", "0.0.0.0:8000"]
