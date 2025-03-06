@@ -114,7 +114,6 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [
     FRONTEND_DIST,  # ✅ 確保 Django 能找到 Vue build 出來的檔案
 ]
-
 # 🔹 讓 Django 伺服靜態文件（生產環境可能要用 Nginx）
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
@@ -141,7 +140,7 @@ TEMPLATES = [
         },
     },
 ]
-
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 WSGI_APPLICATION = 'sonic_vision.wsgi.application'
 
 

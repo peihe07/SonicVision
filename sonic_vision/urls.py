@@ -3,7 +3,8 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
-from main_app.views import index, search_tmdb
+from main_app.views import index
+from movies.views import search_tmdb_movie
 import os
 
 urlpatterns = [
@@ -13,7 +14,7 @@ urlpatterns = [
     path('api/auth/', include('auth.urls')), # JWT 路由
     path('api/movies/', include('movies.urls')),
     path("api/music/", include("music.urls")),
-    path('api/search-tmdb/', search_tmdb, name='search_tmdb'),  # API 路由
+    path('api/search-tmdb/', search_tmdb_movie, name='search_tmdb'),  # API 路由
     re_path(r'^(?!api/).*$', index, name='index'),  # Vue 處理前端路由
 
 ]
