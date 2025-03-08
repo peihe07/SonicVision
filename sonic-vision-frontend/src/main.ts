@@ -2,13 +2,15 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 
-
-// 🔹 引入 Bootstrap CSS
+// ✅ 確保 Bootstrap 样式已加载
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap";
 
-// 🔹 引入 Bootstrap JavaScript（包含 Modal、Navbar 等功能）
-import 'bootstrap';
+// ✅ 確保全局樣式已載入（如果你有 custom.scss）
+import "./assets/main.css";  
 
 const app = createApp(App);
-app.use(router);  
+app.use(router);
+
+// ✅ 確保 Vue 頁面正確掛載
 app.mount('#app');
