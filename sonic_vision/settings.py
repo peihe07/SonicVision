@@ -129,7 +129,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [os.path.join(BASE_DIR, 'sonic-vision-frontend', 'dist')],  # 這裡要指向 Vue 打包後的檔案
-        'APP_DIRS': True,
+        'APP_DIRS': False,  # 為了避免 Django 與 Vue 的 template 衝突，這裡設為 False
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',

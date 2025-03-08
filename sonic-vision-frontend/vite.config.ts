@@ -4,6 +4,7 @@ import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 
 export default defineConfig(({ mode }) => ({
+  base: "/static/", // 確保 Django 伺服器能正確提供
   plugins: [vue(), vueDevTools()],
   resolve: {
     alias: {
@@ -24,5 +25,4 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",  // ✅ 確保 Vite build 後輸出到 `dist/`
   },
-  base: mode === "development" ? "/" : "/static/",
 }));
