@@ -1,4 +1,5 @@
 import About from "@/pages/About.vue";
+import ApiTest from "@/pages/ApiTest.vue";
 import Community from "@/pages/Community.vue";
 import Discover from "@/pages/Discover.vue";
 import Home from "@/pages/Home.vue";
@@ -51,6 +52,11 @@ const routes = [
     path: "/register",
     name: "Register",
     component: Register
+  },
+  {
+    path: "/api-test",
+    name: "ApiTest",
+    component: ApiTest
   },
   {
     path: "/:pathMatch(.*)*",
