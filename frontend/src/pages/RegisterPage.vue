@@ -84,7 +84,7 @@
 
 <script>
 export default {
-  name: 'Register',
+  name: 'RegisterPage',
   data() {
     return {
       form: {

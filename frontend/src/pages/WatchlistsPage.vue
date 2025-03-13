@@ -1,29 +1,35 @@
 <template>
-  <div class="playlists-page">
+  <div class="watchlists-page">
     <div class="page-header">
-      <h1>我的歌單</h1>
+      <h1>我的片單</h1>
       <button class="btn btn-primary" @click="showCreateModal = true">
-        <i class="fas fa-plus"></i> 創建新歌單
+        <i class="fas fa-plus"></i> 創建新片單
       </button>
     </div>
 
-    <div class="playlists-grid" v-if="!loading && playlists.length">
-      <div v-for="playlist in playlists" :key="playlist.id" class="playlist-card">
-        <div class="playlist-cover" :style="{ backgroundImage: `url(${playlist.coverUrl || '/default-playlist.jpg'})` }">
-          <div class="playlist-overlay">
-            <button class="btn btn-play" @click="playPlaylist(playlist.id)">
-              <i class="fas fa-play"></i>
+    <div class="watchlists-grid" v-if="!loading && watchlists.length">
+      <div v-for="watchlist in watchlists" :key="watchlist.id" class="watchlist-card">
+        <div class="watchlist-cover" :style="{ backgroundImage: `url(${watchlist.coverUrl || '/default-watchlist.jpg'})` }">
+          <div class="watchlist-overlay">
+            <button class="btn btn-view" @click="viewWatchlist(watchlist.id)">
+              <i class="fas fa-eye"></i>
             </button>
           </div>
         </div>
-        <div class="playlist-info">
-          <h3>{{ playlist.name }}</h3>
-          <p class="playlist-meta">{{ playlist.songCount }} 首歌曲 • {{ formatDate(playlist.updatedAt) }}</p>
-          <div class="playlist-actions">
-            <button class="btn btn-icon" @click="editPlaylist(playlist)">
+        <div class="watchlist-info">
+          <h3>{{ watchlist.name }}</h3>
+          <p class="watchlist-meta">{{ watchlist.movieCount }} 部電影 • {{ formatDate(watchlist.updatedAt) }}</p>
+          <div class="progress-bar" v-if="watchlist.movieCount > 0">
+            <div class="progress" :style="{ width: `${(watchlist.watchedCount / watchlist.movieCount) * 100}%` }"></div>
+          </div>
+          <p class="progress-text" v-if="watchlist.movieCount > 0">
+            已觀看 {{ watchlist.watchedCount }}/{{ watchlist.movieCount }}
+          </p>
+          <div class="watchlist-actions">
+            <button class="btn btn-icon" @click="editWatchlist(watchlist)">
               <i class="fas fa-edit"></i>
             </button>
-            <button class="btn btn-icon" @click="deletePlaylist(playlist.id)">
+            <button class="btn btn-icon" @click="deleteWatchlist(watchlist.id)">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -31,12 +37,12 @@
       </div>
     </div>
 
-    <div class="empty-state" v-else-if="!loading && !playlists.length">
-      <i class="fas fa-music"></i>
-      <h2>還沒有歌單</h2>
-      <p>創建一個歌單，開始收藏喜愛的音樂吧！</p>
+    <div class="empty-state" v-else-if="!loading && !watchlists.length">
+      <i class="fas fa-film"></i>
+      <h2>還沒有片單</h2>
+      <p>創建一個片單，開始收藏想看的電影吧！</p>
       <button class="btn btn-primary" @click="showCreateModal = true">
-        創建歌單
+        創建片單
       </button>
     </div>
 
@@ -45,38 +51,38 @@
       <p>載入中...</p>
     </div>
 
-    <!-- 創建/編輯歌單模態框 -->
+    <!-- 創建/編輯片單模態框 -->
     <div class="modal" v-if="showCreateModal || showEditModal">
       <div class="modal-overlay" @click="closeModal"></div>
       <div class="modal-content">
-        <h2>{{ showEditModal ? '編輯歌單' : '創建新歌單' }}</h2>
+        <h2>{{ showEditModal ? '編輯片單' : '創建新片單' }}</h2>
         <form @submit.prevent="handleSubmit">
           <div class="form-group">
-            <label for="playlistName">歌單名稱</label>
+            <label for="watchlistName">片單名稱</label>
             <input
               type="text"
-              id="playlistName"
+              id="watchlistName"
               v-model="form.name"
               required
               class="form-control"
-              placeholder="為您的歌單取個名字"
+              placeholder="為您的片單取個名字"
             >
           </div>
           <div class="form-group">
-            <label for="playlistDescription">描述</label>
+            <label for="watchlistDescription">描述</label>
             <textarea
-              id="playlistDescription"
+              id="watchlistDescription"
               v-model="form.description"
               class="form-control"
               rows="3"
-              placeholder="描述一下這個歌單..."
+              placeholder="描述一下這個片單..."
             ></textarea>
           </div>
           <div class="form-group">
-            <label for="playlistCover">封面圖片</label>
+            <label for="watchlistCover">封面圖片</label>
             <input
               type="file"
-              id="playlistCover"
+              id="watchlistCover"
               @change="handleCoverUpload"
               accept="image/*"
               class="form-control"
@@ -85,7 +91,7 @@
           <div class="form-group">
             <label class="checkbox-label">
               <input type="checkbox" v-model="form.isPublic">
-              <span>公開歌單</span>
+              <span>公開片單</span>
             </label>
           </div>
           <div class="modal-actions">
@@ -103,7 +109,7 @@
       <div class="modal-overlay" @click="closeModal"></div>
       <div class="modal-content">
         <h2>確認刪除</h2>
-        <p>確定要刪除這個歌單嗎？此操作無法復原。</p>
+        <p>確定要刪除這個片單嗎？此操作無法復原。</p>
         <div class="modal-actions">
           <button class="btn btn-outline" @click="closeModal">取消</button>
           <button class="btn btn-danger" @click="confirmDelete" :disabled="loading">
@@ -116,18 +122,18 @@
 </template>
 
 <script>
-import { playlists } from '@/services/api'
+import { watchlists } from '@/services/api'
 
 export default {
-  name: 'Playlists',
+  name: 'WatchlistsPage',
   data() {
     return {
-      playlists: [],
+      watchlists: [],
       loading: false,
       showCreateModal: false,
       showEditModal: false,
       showDeleteModal: false,
-      selectedPlaylistId: null,
+      selectedWatchlistId: null,
       form: {
         name: '',
         description: '',
@@ -137,13 +143,13 @@ export default {
     }
   },
   methods: {
-    async fetchPlaylists() {
+    async fetchWatchlists() {
       try {
         this.loading = true
-        const response = await playlists.getAll()
-        this.playlists = response.data
+        const response = await watchlists.getAll()
+        this.watchlists = response.data
       } catch (err) {
-        console.error('Failed to fetch playlists:', err)
+        console.error('Failed to fetch watchlists:', err)
       } finally {
         this.loading = false
       }
@@ -169,54 +175,53 @@ export default {
         }
 
         if (this.showEditModal) {
-          await playlists.update(this.selectedPlaylistId, formData)
+          await watchlists.update(this.selectedWatchlistId, formData)
         } else {
-          await playlists.create(formData)
+          await watchlists.create(formData)
         }
 
         this.closeModal()
-        this.fetchPlaylists()
+        this.fetchWatchlists()
       } catch (err) {
-        console.error('Failed to save playlist:', err)
+        console.error('Failed to save watchlist:', err)
       } finally {
         this.loading = false
       }
     },
-    editPlaylist(playlist) {
+    editWatchlist(watchlist) {
       this.form = {
-        name: playlist.name,
-        description: playlist.description,
-        isPublic: playlist.isPublic,
+        name: watchlist.name,
+        description: watchlist.description,
+        isPublic: watchlist.isPublic,
         coverFile: null
       }
-      this.selectedPlaylistId = playlist.id
+      this.selectedWatchlistId = watchlist.id
       this.showEditModal = true
     },
-    deletePlaylist(id) {
-      this.selectedPlaylistId = id
+    deleteWatchlist(id) {
+      this.selectedWatchlistId = id
       this.showDeleteModal = true
     },
     async confirmDelete() {
       try {
         this.loading = true
-        await playlists.delete(this.selectedPlaylistId)
+        await watchlists.delete(this.selectedWatchlistId)
         this.closeModal()
-        this.fetchPlaylists()
+        this.fetchWatchlists()
       } catch (err) {
-        console.error('Failed to delete playlist:', err)
+        console.error('Failed to delete watchlist:', err)
       } finally {
         this.loading = false
       }
     },
-    playPlaylist(id) {
-      // TODO: 實現播放功能
-      console.log('Play playlist:', id)
+    viewWatchlist(id) {
+      this.$router.push(`/watchlists/${id}`)
     },
     closeModal() {
       this.showCreateModal = false
       this.showEditModal = false
       this.showDeleteModal = false
-      this.selectedPlaylistId = null
+      this.selectedWatchlistId = null
       this.form = {
         name: '',
         description: '',
@@ -226,13 +231,13 @@ export default {
     }
   },
   mounted() {
-    this.fetchPlaylists()
+    this.fetchWatchlists()
   }
 }
 </script>
 
 <style scoped>
-.playlists-page {
+.watchlists-page {
   padding: 2rem;
 }
 
@@ -248,13 +253,13 @@ export default {
   color: #2c3e50;
 }
 
-.playlists-grid {
+.watchlists-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 2rem;
 }
 
-.playlist-card {
+.watchlist-card {
   background: white;
   border-radius: 8px;
   overflow: hidden;
@@ -262,18 +267,18 @@ export default {
   transition: transform 0.3s ease;
 }
 
-.playlist-card:hover {
+.watchlist-card:hover {
   transform: translateY(-5px);
 }
 
-.playlist-cover {
+.watchlist-cover {
   position: relative;
   height: 200px;
   background-size: cover;
   background-position: center;
 }
 
-.playlist-overlay {
+.watchlist-overlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -287,11 +292,11 @@ export default {
   transition: opacity 0.3s ease;
 }
 
-.playlist-cover:hover .playlist-overlay {
+.watchlist-cover:hover .watchlist-overlay {
   opacity: 1;
 }
 
-.btn-play {
+.btn-view {
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -304,27 +309,47 @@ export default {
   transition: transform 0.3s ease;
 }
 
-.btn-play:hover {
+.btn-view:hover {
   transform: scale(1.1);
 }
 
-.playlist-info {
+.watchlist-info {
   padding: 1rem;
 }
 
-.playlist-info h3 {
+.watchlist-info h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.1rem;
   color: #2c3e50;
 }
 
-.playlist-meta {
+.watchlist-meta {
   color: #666;
   font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 4px;
+  background: #eee;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress {
+  height: 100%;
+  background: #3498db;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  color: #666;
+  font-size: 0.8rem;
   margin-bottom: 1rem;
 }
 
-.playlist-actions {
+.watchlist-actions {
   display: flex;
   gap: 0.5rem;
 }

@@ -83,7 +83,7 @@
 
 <script>
 export default {
-  name: 'Discover',
+  name: 'DiscoverPage',
   data() {
     return {
       searchQuery: '',

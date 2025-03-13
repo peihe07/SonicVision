@@ -59,7 +59,7 @@
 
 <script>
 export default {
-  name: 'Home',
+  name: 'HomePage',
   data() {
     return {
       // 這裡將添加數據狀態
