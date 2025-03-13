@@ -60,13 +60,13 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(process.env.BASE_URL),
   routes
 });
 
 // 路由守衛
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('token'); // 檢查用戶是否已登入
+  const isAuthenticated = !!localStorage.getItem('token'); // 檢查用戶是否已登入
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login'); // 如果需要驗證但未登入，重定向到登入頁面
