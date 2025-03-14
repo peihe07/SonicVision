@@ -9,7 +9,6 @@ COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 
 # 複製前端代碼
-COPY frontend/ .
 
 # 開放端口
 EXPOSE 8080

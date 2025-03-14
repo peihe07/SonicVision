@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -110,6 +111,7 @@ def initialize_spotify_client():
 initialize_spotify_client()
 
 # ✅ 1. 用戶註冊 API
+@csrf_exempt
 @api_view(['POST'])
 def register_user(request):
     username = request.data.get('username')
@@ -120,7 +122,19 @@ def register_user(request):
         return Response({"error": "用戶名稱已存在"}, status=status.HTTP_400_BAD_REQUEST)
 
     user = User.objects.create_user(username=username, email=email, password=password)
-    return Response({"message": "註冊成功！"}, status=status.HTTP_201_CREATED)
+    
+    # 生成 JWT token
+    refresh = RefreshToken.for_user(user)
+    
+    return Response({
+        "message": "註冊成功！",
+        "token": str(refresh.access_token),
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
+    }, status=status.HTTP_201_CREATED)
 
 
 # ✅ 2. 自訂 JWT Token 回應 (添加額外用戶資訊)
@@ -128,11 +142,24 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['username'] = user.username  # 添加用戶名到 JWT Token
+        token['username'] = user.username
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        refresh = self.get_token(self.user)
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+        }
+        return data
 
 
 # ✅ 3. 自訂 Token 取得 View
+@method_decorator(csrf_exempt, name='dispatch')
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 

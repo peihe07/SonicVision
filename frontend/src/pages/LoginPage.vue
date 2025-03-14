@@ -4,14 +4,14 @@
       <h1>登入</h1>
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
-          <label for="email">電子郵件</label>
+          <label for="username">用戶名稱</label>
           <input
-            type="email"
-            id="email"
-            v-model="form.email"
+            type="text"
+            id="username"
+            v-model="form.username"
             required
             class="form-control"
-            placeholder="請輸入您的電子郵件"
+            placeholder="請輸入您的用戶名稱"
           >
         </div>
         <div class="form-group">
@@ -59,40 +59,35 @@
 </template>
 
 <script>
-import { auth } from '@/services/api';
+import { useAuthStore } from '@/store/modules/auth';
 
 export default {
   name: 'LoginPage',
   data() {
     return {
       form: {
-        email: '',
+        username: '',
         password: '',
         remember: false
       },
-      loading: false,
       error: null
+    }
+  },
+  computed: {
+    loading() {
+      return useAuthStore().loading;
     }
   },
   methods: {
     async handleLogin() {
+      const authStore = useAuthStore();
       try {
-        this.loading = true;
         this.error = null;
-        
-        const response = await auth.login({
-          email: this.form.email,
-          password: this.form.password
-        });
-        
-        localStorage.setItem('token', response.data.access);
+        await authStore.login(this.form.username, this.form.password);
         this.$router.push('/discover');
-        
       } catch (err) {
         console.error('Login error:', err);
-        this.error = '登入失敗，請檢查您的帳號密碼';
-      } finally {
-        this.loading = false;
+        this.error = authStore.error || '登入失敗，請檢查您的用戶名稱和密碼';
       }
     },
     async handleGoogleLogin() {

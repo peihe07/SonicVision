@@ -16,41 +16,33 @@
         <router-link to="/register" class="btn btn-primary">註冊</router-link>
       </div>
       <div v-else class="nav-user">
-        <notification-center class="mr-4"></notification-center>
-        <v-menu offset-y>
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn
-              icon
-              v-bind="attrs"
-              v-on="on"
-            >
-              <v-avatar size="32">
-                <v-img
-                  :src="currentUser?.avatar || '/avatars/default.jpg'"
-                  alt="用戶頭像"
-                ></v-img>
-              </v-avatar>
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item :to="`/user/${currentUser?.username}`">
-              <v-list-item-icon>
-                <v-icon>mdi-account</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>個人資料</v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-            <v-list-item @click="logout">
-              <v-list-item-icon>
-                <v-icon>mdi-logout</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>登出</v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <div class="user-menu" @click="toggleUserMenu" ref="userMenuRef">
+          <img 
+            :src="currentUser?.avatar || '/avatars/default.jpg'" 
+            :alt="currentUser?.username"
+            class="user-avatar"
+          >
+          <div class="user-menu-dropdown" v-if="showUserMenu">
+            <div class="user-info">
+              <strong>{{ currentUser?.username }}</strong>
+              <span>{{ currentUser?.email }}</span>
+            </div>
+            <div class="menu-divider"></div>
+            <router-link to="/profile" class="menu-item">
+              <i class="fas fa-user"></i>
+              個人資料
+            </router-link>
+            <router-link to="/settings" class="menu-item">
+              <i class="fas fa-cog"></i>
+              設定
+            </router-link>
+            <div class="menu-divider"></div>
+            <button @click="handleLogout" class="menu-item logout-button">
+              <i class="fas fa-sign-out-alt"></i>
+              登出
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
     <main class="main-content">
@@ -81,37 +73,61 @@
 </template>
 
 <script lang="ts">
-import NotificationCenter from '@/components/NotificationCenter.vue';
 import { useAuthStore } from '@/store/modules/auth';
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
   name: 'App',
-
-  components: {
-    NotificationCenter,
-  },
-
+  
   setup() {
     const authStore = useAuthStore();
+    const router = useRouter();
+    const showUserMenu = ref(false);
+    const userMenuRef = ref<HTMLElement | null>(null);
 
     const isAuthenticated = computed(() => authStore.isAuthenticated);
-    const currentUser = computed(() => authStore.getCurrentUser);
+    const currentUser = computed(() => authStore.currentUser);
 
-    const logout = async () => {
+    const toggleUserMenu = () => {
+      showUserMenu.value = !showUserMenu.value;
+    };
+
+    const handleLogout = async () => {
       try {
         await authStore.logout();
+        showUserMenu.value = false;
+        router.push('/login');
       } catch (error) {
-        console.error('Failed to logout:', error);
+        console.error('登出失敗:', error);
       }
     };
+
+    // 點擊外部關閉選單
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+        showUserMenu.value = false;
+      }
+    };
+
+    onMounted(() => {
+      document.addEventListener('click', handleClickOutside);
+      authStore.checkAuth();
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('click', handleClickOutside);
+    });
 
     return {
       isAuthenticated,
       currentUser,
-      logout,
+      showUserMenu,
+      userMenuRef,
+      toggleUserMenu,
+      handleLogout
     };
-  },
+  }
 });
 </script>
 
@@ -234,5 +250,99 @@ export default defineComponent({
 
 .mr-4 {
   margin-right: 1rem;
+}
+
+.nav-user {
+  position: relative;
+}
+
+.user-menu {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-menu:hover {
+  background-color: #34495e;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 200px;
+  padding: 0.5rem 0;
+  margin-top: 0.5rem;
+  z-index: 1000;
+}
+
+.user-info {
+  padding: 1rem;
+  text-align: center;
+}
+
+.user-info strong {
+  display: block;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.user-info span {
+  display: block;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.menu-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 0.5rem 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #2c3e50;
+  text-decoration: none;
+  transition: background-color 0.3s;
+}
+
+.menu-item:hover {
+  background-color: #f8f9fa;
+}
+
+.menu-item i {
+  width: 1.25rem;
+  text-align: center;
+}
+
+.logout-button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #e74c3c;
+}
+
+.logout-button:hover {
+  background-color: #fee2e2;
 }
 </style>

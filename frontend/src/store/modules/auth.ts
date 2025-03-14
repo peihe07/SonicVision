@@ -1,116 +1,108 @@
-import axios from 'axios';
+import { auth } from '@/services/api';
 import { defineStore } from 'pinia';
 
 export interface User {
     id: number;
     username: string;
     email: string;
-    avatar?: string;
-}
-
-interface AuthResponse {
-    user: User;
-    token?: string;
+    avatar?: string;  // 可選的頭像 URL
 }
 
 interface AuthState {
-    currentUser: User | null;
+    user: User | null;
+    token: string | null;
     loading: boolean;
     error: string | null;
 }
 
 export const useAuthStore = defineStore('auth', {
     state: (): AuthState => ({
-        currentUser: null,
+        user: null,
+        token: localStorage.getItem('token'),
         loading: false,
         error: null,
     }),
 
     getters: {
-        isAuthenticated: (state): boolean => !!state.currentUser,
-        getCurrentUser: (state): User | null => state.currentUser,
+        isAuthenticated: (state): boolean => !!state.token && !!state.user,
+        currentUser: (state): User | null => state.user,
     },
 
     actions: {
-        async login(email: string, password: string): Promise<void> {
+        setToken(token: string) {
+            this.token = token;
+            localStorage.setItem('token', token);
+        },
+
+        clearAuth() {
+            this.user = null;
+            this.token = null;
+            localStorage.removeItem('token');
+        },
+
+        async login(username: string, password: string) {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.post<AuthResponse>('/auth/login', {
-                    email,
-                    password,
-                });
-                this.currentUser = response.data.user;
-                if (response.data.token) {
-                    localStorage.setItem('token', response.data.token);
+                const response = await auth.login(username, password);
+                const token = response.access || response.token;
+                if (!token) {
+                    throw new Error('未收到有效的訪問令牌');
                 }
+
+                this.setToken(token);
+
+                await this.fetchUserProfile();
+
+                return response;
             } catch (error) {
-                this.error = '登入失敗';
+                this.error = '登入失敗，請檢查您的憑證';
+                this.clearAuth();
                 throw error;
             } finally {
                 this.loading = false;
             }
         },
 
-        async register(username: string, email: string, password: string): Promise<void> {
-            this.loading = true;
-            this.error = null;
+        async logout() {
             try {
-                const response = await axios.post<AuthResponse>('/auth/register', {
-                    username,
-                    email,
-                    password,
-                });
-                this.currentUser = response.data.user;
-                if (response.data.token) {
-                    localStorage.setItem('token', response.data.token);
-                }
+                await auth.logout?.();
             } catch (error) {
-                this.error = '註冊失敗';
-                throw error;
+                console.error('登出時發生錯誤:', error);
             } finally {
-                this.loading = false;
+                this.clearAuth();
             }
         },
 
-        async logout(): Promise<void> {
+        async fetchUserProfile() {
             try {
-                await axios.post('/auth/logout');
-                this.currentUser = null;
-                localStorage.removeItem('token');
+                const response = await auth.getProfile();
+                this.user = response;
             } catch (error) {
-                this.error = '登出失敗';
+                this.clearAuth();
                 throw error;
             }
         },
 
-        async fetchCurrentUser(): Promise<void> {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await axios.get<AuthResponse>('/auth/me');
-                this.currentUser = response.data.user;
-            } catch (error) {
-                this.currentUser = null;
-                this.error = '獲取用戶信息失敗';
-                localStorage.removeItem('token');
-            } finally {
-                this.loading = false;
+        async checkAuth() {
+            if (this.token && !this.user) {
+                await this.fetchUserProfile();
             }
         },
 
-        async updateProfile(data: Partial<User>): Promise<void> {
+        async updateProfile(userData: Partial<User>) {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.put<AuthResponse>('/auth/profile', data);
-                this.currentUser = response.data.user;
+                const response = await auth.updateProfile(userData);
+                this.user = response;
+                return response;
             } catch (error) {
                 this.error = '更新個人資料失敗';
                 throw error;
             } finally {
                 this.loading = false;
             }
-        },
-    },
+        }
+    }
 }); 

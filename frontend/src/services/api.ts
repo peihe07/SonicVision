@@ -1,14 +1,53 @@
+import type { User } from '@/store/modules/auth';
 import type { ApiResponse, Movie, Music } from '@/types';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
+// 創建 axios 實例
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true,  // 允許跨域請求攜帶 cookie
 });
+
+// 獲取 CSRF Token
+const getCsrfToken = () => {
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+};
+
+// 請求攔截器：添加認證信息
+apiClient.interceptors.request.use(config => {
+    // 添加 CSRF Token
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+        config.headers['X-CSRFToken'] = csrfToken;
+    }
+
+    // 添加 JWT Token
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return config;
+});
+
+// 響應攔截器：處理認證錯誤
+apiClient.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            // 清除無效的 token
+            localStorage.removeItem('token');
+        }
+        return Promise.reject(error);
+    }
+);
 
 // 模擬數據
 const mockTrendingMusic: Music[] = [
@@ -78,7 +117,7 @@ export const getTrendingMovies = async (): Promise<ApiResponse<Movie>> => {
 export const auth = {
     login: async (username: string, password: string) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+            const response = await apiClient.post('/login/', {
                 username,
                 password
             });
@@ -90,7 +129,7 @@ export const auth = {
     },
     register: async (username: string, password: string, email: string) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/auth/register`, {
+            const response = await apiClient.post('/register/', {
                 username,
                 password,
                 email
@@ -98,6 +137,32 @@ export const auth = {
             return response.data;
         } catch (error) {
             console.error('註冊失敗:', error);
+            throw error;
+        }
+    },
+    getProfile: async () => {
+        try {
+            const response = await apiClient.get('/profile/');
+            return response.data;
+        } catch (error) {
+            console.error('獲取用戶資料失敗:', error);
+            throw error;
+        }
+    },
+    updateProfile: async (userData: Partial<User>) => {
+        try {
+            const response = await apiClient.put('/profile/', userData);
+            return response.data;
+        } catch (error) {
+            console.error('更新個人資料失敗:', error);
+            throw error;
+        }
+    },
+    logout: async () => {
+        try {
+            await apiClient.post('/logout/');
+        } catch (error) {
+            console.error('登出失敗:', error);
             throw error;
         }
     }
