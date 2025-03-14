@@ -28,18 +28,11 @@
                   title: track.name,
                   artist: track.artists[0].name,
                   coverUrl: track.album.images[0]?.url || '',
-                  rating: 4.5
+                  rating: 4.5,
+                  spotifyUrl: track.external_urls?.spotify,
+                  youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(track.name + ' ' + track.artists[0].name)}`
                 }"
-              >
-                <div class="music-details">
-                  <h4>{{ track.name }}</h4>
-                  <p>{{ track.artists[0].name }}</p>
-                  <div class="rating">
-                    <i class="fas fa-star"></i>
-                    <span>4.5</span>
-                  </div>
-                </div>
-              </MusicCard>
+              />
             </div>
           </div>
         </div>

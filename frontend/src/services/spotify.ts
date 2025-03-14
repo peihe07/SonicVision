@@ -196,8 +196,8 @@ export async function getTrendingMusic(): Promise<SpotifyTrack[]> {
                 artists: album.artists,
                 external_urls: album.external_urls
             },
-            preview_url: null,
-            external_urls: album.external_urls
+            external_urls: album.external_urls,
+            preview_url: null
         }));
     } catch (error) {
         if (error instanceof AxiosError) {

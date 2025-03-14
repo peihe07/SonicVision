@@ -1,5 +1,5 @@
 <template>
-    <div class="music-card" @click="navigateToDetail">
+    <div class="music-card">
         <img :src="music.coverUrl" :alt="music.title" class="music-poster">
         <div class="music-info">
             <h3>{{ music.title }}</h3>
@@ -7,16 +7,22 @@
                 <span class="artist">🎤 {{ music.artist }}</span>
                 <span class="rating">⭐ {{ music.rating.toFixed(1) }}</span>
             </div>
-            <div class="hover-details">
-                <h4>{{ music.title }}</h4>
-                <p>{{ music.artist }}</p>
-                <div class="rating">
-                    <i class="fas fa-star"></i>
-                    <span>{{ music.rating.toFixed(1) }}</span>
+            <div class="play-buttons">
+                <a v-if="music.spotifyUrl" 
+                   :href="music.spotifyUrl" 
+                   target="_blank" 
+                   class="play-button spotify">
+                    <i class="fab fa-spotify"></i> Spotify
+                </a>
+                <a v-if="music.youtubeUrl" 
+                   :href="music.youtubeUrl" 
+                   target="_blank" 
+                   class="play-button youtube">
+                    <i class="fab fa-youtube"></i> YouTube
+                </a>
+                <div v-if="!music.spotifyUrl && !music.youtubeUrl" class="no-link">
+                    暫無播放連結
                 </div>
-            </div>
-            <div class="view-details">
-                點擊查看詳情
             </div>
         </div>
     </div>
@@ -25,7 +31,6 @@
 <script lang="ts">
 import type { Music } from '@/types';
 import { defineComponent, PropType } from 'vue';
-import { useRouter } from 'vue-router';
 
 export default defineComponent({
     name: 'MusicCard',
@@ -34,20 +39,6 @@ export default defineComponent({
             type: Object as PropType<Music>,
             required: true
         }
-    },
-    setup(props) {
-        const router = useRouter();
-
-        const navigateToDetail = () => {
-            router.push({
-                name: 'music-detail',
-                params: { id: props.music.id.toString() }
-            });
-        };
-
-        return {
-            navigateToDetail
-        };
     }
 });
 </script>
@@ -59,7 +50,6 @@ export default defineComponent({
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     transition: transform 0.3s ease;
-    cursor: pointer;
     position: relative;
 }
 
@@ -90,50 +80,9 @@ export default defineComponent({
 .music-details {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
     font-size: 0.9rem;
     color: #666;
-}
-
-.hover-details {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-    z-index: 1;
-}
-
-.music-card:hover .hover-details {
-    transform: translateY(0);
-}
-
-.hover-details h4 {
-    margin: 0 0 0.5rem;
-    font-size: 1.1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.hover-details p {
-    margin: 0 0 0.5rem;
-    font-size: 0.9rem;
-    opacity: 0.8;
-}
-
-.hover-details .rating {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.hover-details .rating i {
-    color: #f1c40f;
 }
 
 .artist {
@@ -145,16 +94,54 @@ export default defineComponent({
     color: #f1c40f;
 }
 
-.view-details {
-    font-size: 0.8rem;
-    color: #3498db;
-    text-align: center;
-    padding: 0.5rem;
-    border-top: 1px solid #eee;
-    margin-top: 0.5rem;
+.play-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
-.view-details:hover {
+.play-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.play-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.spotify {
+    background-color: #1DB954;
+    color: white;
+}
+
+.spotify:hover {
+    background-color: #1ed760;
+}
+
+.youtube {
+    background-color: #FF0000;
+    color: white;
+}
+
+.youtube:hover {
+    background-color: #ff1a1a;
+}
+
+.no-link {
+    text-align: center;
+    padding: 0.75rem;
+    color: #666;
     background-color: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 </style> 

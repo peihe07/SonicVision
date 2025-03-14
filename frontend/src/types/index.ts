@@ -4,6 +4,8 @@ export interface Music {
     artist: string;
     coverUrl: string;
     rating: number;
+    spotifyUrl?: string;
+    youtubeUrl?: string;
 }
 
 export interface Movie {

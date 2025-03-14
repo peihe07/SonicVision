@@ -51,7 +51,9 @@
               title: track.name,
               artist: track.artists[0].name,
               coverUrl: track.album.images[0]?.url || '',
-              rating: 4.5
+              rating: 4.5,
+              spotifyUrl: track.external_urls?.spotify,
+              youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(track.name + ' ' + track.artists[0].name)}`
             }"
           />
         </div>
