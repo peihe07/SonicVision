@@ -41,15 +41,27 @@
         <div class="trending-music">
           <h3>熱門音樂</h3>
           <div class="trending-items">
-            <!-- 這裡將通過 API 動態載入熱門音樂 -->
-            <div class="placeholder-item">載入中...</div>
+            <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else class="trending-content">
+              <MusicCard
+                v-for="music in trendingMusic"
+                :key="music.id"
+                :music="music"
+              />
+            </div>
           </div>
         </div>
         <div class="trending-movies">
           <h3>熱門電影</h3>
           <div class="trending-items">
-            <!-- 這裡將通過 API 動態載入熱門電影 -->
-            <div class="placeholder-item">載入中...</div>
+            <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else class="trending-content">
+              <MovieCard
+                v-for="movie in trendingMovies"
+                :key="movie.id"
+                :movie="movie"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -57,18 +69,54 @@
   </div>
 </template>
 
-<script>
-export default {
+<script lang="ts">
+import MovieCard from '@/components/MovieCard.vue';
+import MusicCard from '@/components/MusicCard.vue';
+import { getTrendingMovies, getTrendingMusic } from '@/services/api';
+import type { Movie, Music } from '@/types';
+import { defineComponent } from 'vue';
+
+export default defineComponent({
   name: 'HomePage',
+  components: {
+    MovieCard,
+    MusicCard
+  },
   data() {
     return {
-      // 這裡將添加數據狀態
+      trendingMusic: [] as Music[],
+      trendingMovies: [] as Movie[],
+      loading: true,
+      error: null as Error | null
+    }
+  },
+  async created() {
+    try {
+      await this.fetchTrendingContent()
+    } catch (error) {
+      console.error('獲取熱門內容失敗:', error)
+      this.error = error as Error
+    } finally {
+      this.loading = false
     }
   },
   methods: {
-    // 這裡將添加方法
+    async fetchTrendingContent() {
+      try {
+        const [music, movies] = await Promise.all([
+          getTrendingMusic(),
+          getTrendingMovies()
+        ]);
+        
+        this.trendingMusic = music.data.items;
+        this.trendingMovies = movies.data.items;
+      } catch (error) {
+        console.error('API 調用失敗:', error);
+        throw error;
+      }
+    }
   }
-}
+})
 </script>
 
 <style scoped>
@@ -166,6 +214,7 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   margin-top: 2rem;
+  padding: 0 2rem;
 }
 
 .trending-items {
@@ -173,13 +222,20 @@ h2 {
   padding: 1rem;
   border-radius: 8px;
   min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .placeholder-item {
   color: #666;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.trending-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
 }
 </style> 

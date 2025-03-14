@@ -17,10 +17,6 @@
         </div>
         <div class="filter-buttons">
           <button 
-            :class="['filter-btn', { active: activeType === 'all' }]"
-            @click="setActiveType('all')"
-          >全部</button>
-          <button 
             :class="['filter-btn', { active: activeType === 'music' }]"
             @click="setActiveType('music')"
           >音樂</button>
@@ -36,7 +32,7 @@
       <div class="sidebar">
         <div class="filter-section">
           <h3>分類篩選</h3>
-          <div v-if="activeType === 'music' || activeType === 'all'" class="filter-group">
+          <div v-if="activeType === 'music'" class="filter-group">
             <h4>音樂類型</h4>
             <div v-for="genre in musicGenres" :key="genre.id" class="filter-item">
               <input 
@@ -48,7 +44,7 @@
               <label :for="genre.id">{{ genre.name }}</label>
             </div>
           </div>
-          <div v-if="activeType === 'movie' || activeType === 'all'" class="filter-group">
+          <div v-if="activeType === 'movie'" class="filter-group">
             <h4>電影類型</h4>
             <div v-for="genre in movieGenres" :key="genre.id" class="filter-item">
               <input 
@@ -64,10 +60,10 @@
       </div>
 
       <div class="main-content">
-        <div v-if="activeType === 'music' || activeType === 'all'">
+        <div v-if="activeType === 'music'">
           <SpotifySearch :search-query="currentSearchQuery" :active-type="activeType" />
         </div>
-        <div v-if="activeType === 'movie' || activeType === 'all'">
+        <div v-if="activeType === 'movie'">
           <MovieSearch :search-query="currentSearchQuery" :active-type="activeType" />
         </div>
       </div>
@@ -90,7 +86,7 @@ export default {
   setup() {
     const searchQuery = ref('');
     const currentSearchQuery = ref('');
-    const activeType = ref('all');
+    const activeType = ref('music');  // 預設顯示音樂搜尋
     const loading = ref(false);
     const error = ref(null);
     const selectedMusicGenres = ref([]);
@@ -105,14 +101,7 @@ export default {
     ];
 
     const searchPlaceholder = computed(() => {
-      switch(activeType.value) {
-        case 'music':
-          return '搜尋音樂...';
-        case 'movie':
-          return '搜尋電影...';
-        default:
-          return '搜尋音樂或電影...';
-      }
+      return activeType.value === 'music' ? '搜尋音樂...' : '搜尋電影...';
     });
 
     const handleSearch = () => {
@@ -131,7 +120,7 @@ export default {
     const fetchMovieGenres = async () => {
       try {
         const response = await getMovieGenres();
-        movieGenres.value = response.genres;
+        movieGenres.value = response;
       } catch (err) {
         console.error('Error fetching movie genres:', err);
       }
@@ -185,32 +174,33 @@ export default {
 
 .search-input {
   flex: 1;
-  padding: 1rem;
-  font-size: 1.1rem;
-  border: 2px solid #ddd;
+  padding: 0.8rem 1rem;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3498db;
 }
 
 .search-btn {
-  padding: 0 2rem;
+  padding: 0.8rem 1.5rem;
   background: #3498db;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1.1rem;
+  transition: background-color 0.3s ease;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: background-color 0.3s ease;
 }
 
 .search-btn:hover {
   background: #2980b9;
-}
-
-.search-btn i {
-  font-size: 1rem;
 }
 
 .filter-buttons {
@@ -221,15 +211,21 @@ export default {
 
 .filter-btn {
   padding: 0.5rem 2rem;
-  border: none;
-  border-radius: 4px;
-  background: #eee;
+  border: 2px solid #3498db;
+  background: transparent;
+  color: #3498db;
+  border-radius: 25px;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  background: rgba(52, 152, 219, 0.1);
 }
 
 .filter-btn.active {
-  background: #2c3e50;
+  background: #3498db;
   color: white;
 }
 
@@ -244,18 +240,19 @@ export default {
 .sidebar {
   width: 250px;
   flex-shrink: 0;
+}
+
+.filter-section {
   background: white;
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  align-self: flex-start;
-  position: sticky;
-  top: 1rem;
 }
 
 .filter-section h3 {
-  margin-bottom: 1.5rem;
+  margin: 0 0 1rem 0;
   color: #2c3e50;
+  font-size: 1.2rem;
 }
 
 .filter-group {
@@ -263,99 +260,62 @@ export default {
 }
 
 .filter-group h4 {
-  margin-bottom: 1rem;
-  color: #34495e;
+  margin: 0 0 0.8rem 0;
+  color: #666;
+  font-size: 1rem;
 }
 
 .filter-item {
-  margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.filter-item input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+.filter-item label {
+  color: #666;
+  cursor: pointer;
 }
 
 .main-content {
   flex: 1;
+  min-width: 0;
 }
 
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-top: 2rem;
+@media (max-width: 1024px) {
+  .content-section {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
 }
 
-.item-card {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
+@media (max-width: 768px) {
+  .discover-header {
+    padding: 1rem;
+  }
 
-.item-card:hover {
-  transform: translateY(-5px);
-}
+  .search-input-group {
+    flex-direction: column;
+  }
 
-.item-image {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-}
+  .search-btn {
+    width: 100%;
+    justify-content: center;
+  }
 
-.item-info {
-  padding: 1rem;
-}
+  .filter-buttons {
+    flex-wrap: wrap;
+  }
 
-.item-info h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
-}
-
-.item-meta {
-  color: #666;
-  font-size: 0.9rem;
-  margin: 0.5rem 0;
-}
-
-.item-rating {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.stars {
-  color: #f1c40f;
-}
-
-.rating-number {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.btn {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.3s;
-}
-
-.btn-primary {
-  background: #3498db;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #2980b9;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
+  .filter-btn {
+    flex: 1;
+    min-width: 120px;
+  }
 }
 </style> 

@@ -10,9 +10,18 @@ module.exports = defineConfig({
     host: '0.0.0.0',
     hot: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true
+      '^/api/spotify': {
+        target: 'https://api.spotify.com/v1',
+        changeOrigin: true,
+        pathRewrite: { '^/api/spotify': '' }
+      },
+      '^/api/tmdb': {
+        target: 'https://api.themoviedb.org/3',
+        changeOrigin: true,
+        pathRewrite: { '^/api/tmdb': '' },
+        headers: {
+          'Authorization': `Bearer ${process.env.VUE_APP_TMDB_ACCESS_TOKEN}`
+        }
       }
     },
     client: {

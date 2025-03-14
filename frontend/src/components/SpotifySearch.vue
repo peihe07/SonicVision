@@ -6,17 +6,19 @@
       @scroll="handleScroll"
     >
       <div v-for="track in searchResults" :key="track.id" class="track-item">
-        <img 
-          :src="track.album.images[1]?.url" 
-          class="track-image"
-          loading="lazy"
-          :alt="track.name"
-        />
-        <div class="track-info">
-          <h3>{{ track.name }}</h3>
-          <p>{{ track.artists.map(artist => artist.name).join(', ') }}</p>
-          <p class="album-name">Album: {{ track.album.name }}</p>
-        </div>
+        <a :href="getSpotifyTrackUrl(track.id)" target="_blank" rel="noopener noreferrer" class="track-link">
+          <img 
+            :src="track.album.images[1]?.url" 
+            class="track-image"
+            loading="lazy"
+            :alt="track.name"
+          />
+          <div class="track-info">
+            <h3>{{ track.name }}</h3>
+            <p>{{ track.artists.map(artist => artist.name).join(', ') }}</p>
+            <p class="album-name">Album: {{ track.album.name }}</p>
+          </div>
+        </a>
         <div class="track-controls">
           <button
             @click="playPreview(track)"
@@ -178,6 +180,10 @@ export default {
       }
     }, 200);
 
+    const getSpotifyTrackUrl = (trackId) => {
+      return `https://open.spotify.com/track/${trackId}`;
+    };
+
     watch(() => props.searchQuery, (newQuery) => {
       if (newQuery) {
         debouncedSearch();
@@ -209,7 +215,8 @@ export default {
       hasMore,
       playPreview,
       handleAudioEnded,
-      handleScroll
+      handleScroll,
+      getSpotifyTrackUrl
     };
   }
 };
@@ -371,5 +378,21 @@ export default {
   color: #e44;
   border-radius: 8px;
   font-size: 14px;
+}
+
+.track-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.track-link:hover .track-info h3 {
+  color: #1DB954;
+}
+
+.track-link:hover .track-image {
+  opacity: 0.8;
 }
 </style> 
