@@ -176,35 +176,51 @@ export const getAlbumTracks = async (albumId) => {
 export const searchSpotify = async (query, type = 'track') => {
     try {
         const response = await spotifyApi.get('/spotify/search/', {
-            params: { q: query, type }
+            params: {
+                q: query,
+                type,
+                market: 'TW',
+                limit: 20
+            }
         });
 
-        if (!response.data || !response.data.tracks) {
+        if (!response.data || !response.data.tracks || !response.data.tracks.items) {
             throw new Error('無效的響應格式');
         }
 
-        return response.data;
+        return {
+            tracks: {
+                items: response.data.tracks.items,
+                hasMore: response.data.tracks.next !== null
+            }
+        };
     } catch (error) {
-        console.error('Error searching Spotify:', error);
-        if (error.response?.data?.details) {
-            console.error('Error details:', error.response.data.details);
+        console.error('搜尋 Spotify 時發生錯誤:', error);
+        if (error.response?.data?.error) {
+            console.error('錯誤詳情:', error.response.data.error);
         }
-        throw error;
+        throw new Error(error.response?.data?.error?.message || '搜尋失敗，請稍後再試');
     }
 };
 
 export const getPreviewUrl = async (trackId) => {
     try {
-        // 確保在發送請求前有有效的令牌
-        if (!localStorage.getItem('spotify_token')) {
-            await getSpotifyToken()
+        // 先檢查是否有預覽 URL
+        const response = await spotifyApi.get(`/spotify/preview/${trackId}/`);
+        const previewUrl = response.data?.preview_url;
+
+        if (!previewUrl) {
+            console.info(`歌曲 ${trackId} 無預覽版本`);
+            throw new Error('無試聽版本');
         }
 
-        const response = await spotifyApi.get(`/spotify/preview/${trackId}/`);
-        return response.data.preview_url;
+        return previewUrl;
     } catch (error) {
-        console.error('Error getting preview URL:', error);
-        throw error;
+        console.error('獲取預覽 URL 時發生錯誤:', error);
+        if (error.message === '無試聽版本' || error.response?.status === 404) {
+            throw new Error('無試聽版本');
+        }
+        throw new Error(error.response?.data?.error || '獲取預覽失敗，請稍後再試');
     }
 };
 

@@ -6,7 +6,7 @@
           type="text" 
           v-model="searchQuery" 
           @input="handleSearch" 
-          placeholder="搜尋音樂或電影..." 
+          :placeholder="searchPlaceholder" 
           class="search-input"
         >
         <div class="filter-buttons">
@@ -59,7 +59,7 @@
 
       <div class="main-content">
         <div v-if="activeType === 'music' || activeType === 'all'">
-          <SpotifySearch />
+          <SpotifySearch :search-query="searchQuery" :active-type="activeType" />
         </div>
         <div v-if="activeType === 'movie' || activeType === 'all'" class="results-grid">
           <div v-for="item in filteredMovies" :key="item.id" class="item-card">
@@ -81,6 +81,8 @@
 </template>
 
 <script>
+import { debounce } from 'lodash-es';
+import { computed, onMounted, ref } from 'vue';
 import SpotifySearch from '../components/SpotifySearch.vue';
 
 export default {
@@ -88,48 +90,114 @@ export default {
   components: {
     SpotifySearch
   },
-  data() {
-    return {
-      searchQuery: '',
-      activeType: 'all',
-      loading: false,
-      selectedMusicGenres: [],
-      selectedMovieGenres: [],
-      musicGenres: [
-        { id: 'pop', name: '流行' },
-        { id: 'rock', name: '搖滾' },
-        { id: 'jazz', name: '爵士' },
-        { id: 'classical', name: '古典' }
-      ],
-      movieGenres: [
-        { id: 'action', name: '動作' },
-        { id: 'comedy', name: '喜劇' },
-        { id: 'drama', name: '劇情' },
-        { id: 'scifi', name: '科幻' }
-      ],
-      movies: [] // 將從 API 獲取電影數據
-    }
-  },
-  computed: {
-    filteredMovies() {
-      if (this.selectedMovieGenres.length === 0) {
-        return this.movies;
+  setup() {
+    const searchQuery = ref('');
+    const activeType = ref('all');
+    const loading = ref(false);
+    const error = ref(null);
+    const selectedMusicGenres = ref([]);
+    const selectedMovieGenres = ref([]);
+    const movies = ref([]);
+
+    const musicGenres = [
+      { id: 'pop', name: '流行' },
+      { id: 'rock', name: '搖滾' },
+      { id: 'jazz', name: '爵士' },
+      { id: 'classical', name: '古典' }
+    ];
+
+    const movieGenres = [
+      { id: 'action', name: '動作' },
+      { id: 'comedy', name: '喜劇' },
+      { id: 'drama', name: '劇情' },
+      { id: 'scifi', name: '科幻' }
+    ];
+
+    const searchPlaceholder = computed(() => {
+      switch(activeType.value) {
+        case 'music':
+          return '搜尋音樂...';
+        case 'movie':
+          return '搜尋電影...';
+        default:
+          return '搜尋音樂或電影...';
       }
-      return this.movies.filter(movie => 
-        this.selectedMovieGenres.includes(movie.genre)
-      );
-    }
-  },
-  methods: {
-    handleSearch() {
-      // 實現搜尋邏輯
-    },
-    setActiveType(type) {
-      this.activeType = type;
-    }
-  },
-  mounted() {
-    // 載入電影數據
+    });
+
+    const filteredMovies = computed(() => {
+      let filtered = movies.value;
+      
+      if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter(movie => 
+          movie.title.toLowerCase().includes(query) ||
+          movie.meta.toLowerCase().includes(query)
+        );
+      }
+      
+      if (selectedMovieGenres.value.length > 0) {
+        filtered = filtered.filter(movie => 
+          selectedMovieGenres.value.includes(movie.genre)
+        );
+      }
+      
+      return filtered;
+    });
+
+    // 防抖動的搜尋處理
+    const debouncedSearch = debounce(() => {
+      // 這裡可以添加額外的搜尋邏輯
+      error.value = null;
+    }, 300);
+
+    const handleSearch = () => {
+      loading.value = true;
+      debouncedSearch();
+    };
+
+    const setActiveType = (type) => {
+      activeType.value = type;
+      searchQuery.value = '';
+      error.value = null;
+    };
+
+    // 模擬載入電影數據
+    const fetchMovies = async () => {
+      loading.value = true;
+      error.value = null;
+      
+      try {
+        // 這裡應該是實際的 API 調用
+        const response = await fetch('/api/movies');
+        const data = await response.json();
+        movies.value = data;
+      } catch (err) {
+        error.value = '載入電影數據失敗，請稍後再試';
+        console.error('Error fetching movies:', err);
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    onMounted(() => {
+      fetchMovies();
+    });
+
+    return {
+      searchQuery,
+      activeType,
+      loading,
+      error,
+      selectedMusicGenres,
+      selectedMovieGenres,
+      musicGenres,
+      movieGenres,
+      movies,
+      searchPlaceholder,
+      filteredMovies,
+      handleSearch,
+      setActiveType
+    };
   }
 }
 </script>

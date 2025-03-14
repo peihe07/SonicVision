@@ -283,9 +283,10 @@ def get_preview_url(request, track_id):
     logger.info(f"請求音樂預覽 URL: track_id={track_id}")
     
     if not spotify and not initialize_spotify_client():
-        logger.error("無法初始化 Spotify 客戶端")
+        error_msg = "無法初始化 Spotify 客戶端"
+        logger.error(error_msg)
         return Response(
-            {"error": "無法連接到 Spotify 服務"},
+            {"error": error_msg},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
     
@@ -293,26 +294,36 @@ def get_preview_url(request, track_id):
         track = spotify.track(track_id)
         preview_url = track.get('preview_url')
         
-        if preview_url:
-            logger.info("成功獲取預覽 URL")
-            return Response({"preview_url": preview_url})
+        if not preview_url:
+            error_msg = "該歌曲無預覽版本"
+            logger.warning(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_404_NOT_FOUND
+            )
             
-        logger.warning("該歌曲無預覽 URL")
-        return Response(
-            {"error": "該歌曲無預覽"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        logger.info(f"成功獲取預覽 URL: {preview_url}")
+        return Response({"preview_url": preview_url})
         
     except spotipy.exceptions.SpotifyException as e:
-        logger.error(f"Spotify API 錯誤: {str(e)}")
+        error_msg = f"Spotify API 錯誤: {str(e)}"
+        logger.error(error_msg)
+        
+        if "invalid id" in str(e).lower():
+            return Response(
+                {"error": "無效的歌曲 ID"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
         return Response(
-            {"error": "無法獲取歌曲預覽"},
+            {"error": error_msg},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
         
     except Exception as e:
-        logger.error(f"獲取預覽 URL 時發生錯誤: {str(e)}")
+        error_msg = f"獲取預覽 URL 時發生錯誤: {str(e)}"
+        logger.error(error_msg)
         return Response(
-            {"error": str(e)},
+            {"error": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

@@ -1,49 +1,52 @@
 <template>
   <div class="spotify-search">
-    <div class="search-container">
-      <div class="search-input-group">
-        <input
-          v-model="searchQuery"
-          @keyup.enter="performSearch"
-          type="text"
-          placeholder="搜尋音樂..."
-          class="search-input"
-        />
-        <button 
-          @click="performSearch" 
-          class="search-button"
-          :disabled="loading || !searchQuery.trim()"
-        >
-          <span v-if="!loading">搜尋</span>
-          <span v-else>搜尋中...</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="results-container" v-if="searchResults.length">
+    <div 
+      class="results-container" 
+      v-if="searchResults.length"
+      @scroll="handleScroll"
+    >
       <div v-for="track in searchResults" :key="track.id" class="track-item">
-        <img :src="track.album.images[1]?.url" class="track-image" />
+        <img 
+          :src="track.album.images[1]?.url" 
+          class="track-image"
+          loading="lazy"
+          :alt="track.name"
+        />
         <div class="track-info">
           <h3>{{ track.name }}</h3>
           <p>{{ track.artists.map(artist => artist.name).join(', ') }}</p>
+          <p class="album-name">專輯：{{ track.album.name }}</p>
         </div>
         <div class="track-controls">
           <button
             @click="playPreview(track)"
             :class="['play-button', { 'playing': currentlyPlaying === track.id }]"
+            :disabled="loading"
           >
             {{ currentlyPlaying === track.id ? '暫停' : '播放' }}
           </button>
         </div>
       </div>
+
+      <div v-if="loadingMore" class="loading-more">
+        <div class="spinner"></div>
+        <p>載入更多...</p>
+      </div>
     </div>
 
-    <div v-if="loading" class="loading">
+    <div v-if="loading && !loadingMore" class="loading">
       <div class="spinner"></div>
       <p>搜尋中...</p>
     </div>
 
-    <div v-if="!loading && searchQuery && !searchResults.length" class="no-results">
+    <div v-if="error" class="error-message">
+      {{ error }}
+    </div>
+
+    <div 
+      v-if="!loading && !loadingMore && searchQuery && !searchResults.length" 
+      class="no-results"
+    >
       找不到相關結果
     </div>
 
@@ -52,66 +55,142 @@
 </template>
 
 <script>
-import { onBeforeUnmount, ref } from 'vue';
-import { getPreviewUrl, searchSpotify } from '../services/spotify';
+import { debounce } from 'lodash-es';
+import { onBeforeUnmount, ref, watch } from 'vue';
+import { searchSpotify } from '../services/spotify';
 
 export default {
   name: 'SpotifySearch',
-  setup() {
-    const searchQuery = ref('');
+  props: {
+    searchQuery: {
+      type: String,
+      default: ''
+    },
+    activeType: {
+      type: String,
+      default: 'all'
+    }
+  },
+  setup(props) {
     const searchResults = ref([]);
     const loading = ref(false);
+    const error = ref(null);
     const audioPlayer = ref(null);
     const currentlyPlaying = ref(null);
+    const page = ref(1);
+    const hasMore = ref(true);
+    const loadingMore = ref(false);
 
-    const performSearch = async () => {
-      if (!searchQuery.value.trim()) {
+    const debouncedSearch = debounce(async () => {
+      if (!props.searchQuery.trim() || (props.activeType !== 'all' && props.activeType !== 'music')) {
         searchResults.value = [];
         return;
       }
 
       loading.value = true;
+      error.value = null;
+      page.value = 1;
+
       try {
-        const response = await searchSpotify(searchQuery.value);
-        if (response && response.tracks && Array.isArray(response.tracks.items)) {
+        const response = await searchSpotify(props.searchQuery, { page: 1 });
+        if (response?.tracks?.items) {
           searchResults.value = response.tracks.items;
+          hasMore.value = response.tracks.hasMore || false;
         } else {
           searchResults.value = [];
-          console.error('無效的搜尋結果格式:', response);
+          hasMore.value = false;
         }
-      } catch (error) {
-        console.error('搜尋失敗:', error);
-        searchResults.value = [];
+      } catch (err) {
+        error.value = '搜尋失敗，請稍後再試';
+        console.error('Search error:', err);
       } finally {
         loading.value = false;
+      }
+    }, 300);
+
+    const loadMore = async () => {
+      if (loadingMore.value || !hasMore.value) return;
+
+      loadingMore.value = true;
+      const nextPage = page.value + 1;
+
+      try {
+        const response = await searchSpotify(props.searchQuery, { page: nextPage });
+        if (response?.tracks?.items) {
+          searchResults.value = [...searchResults.value, ...response.tracks.items];
+          hasMore.value = response.tracks.hasMore || false;
+          page.value = nextPage;
+        }
+      } catch (err) {
+        error.value = '載入更多失敗，請稍後再試';
+        console.error('Load more error:', err);
+      } finally {
+        loadingMore.value = false;
       }
     };
 
     const playPreview = async (track) => {
-      if (currentlyPlaying.value === track.id) {
-        audioPlayer.value.pause();
-        currentlyPlaying.value = null;
-        return;
-      }
-
       try {
-        const previewUrl = await getPreviewUrl(track.id);
-        if (!previewUrl) {
-          alert('此歌曲無試聽版本');
+        if (currentlyPlaying.value === track.id) {
+          audioPlayer.value.pause();
+          currentlyPlaying.value = null;
           return;
         }
 
-        audioPlayer.value.src = previewUrl;
-        audioPlayer.value.play();
-        currentlyPlaying.value = track.id;
-      } catch (error) {
-        console.error('播放失敗:', error);
+        if (!track.preview_url) {
+          throw new Error('無試聽版本');
+        }
+
+        if (audioPlayer.value) {
+          audioPlayer.value.pause();
+          audioPlayer.value.src = track.preview_url;
+          try {
+            await audioPlayer.value.play();
+            currentlyPlaying.value = track.id;
+          } catch (playError) {
+            throw new Error('播放失敗，請稍後再試');
+          }
+        }
+      } catch (err) {
+        error.value = err.message;
+        console.error('播放錯誤:', err);
+        
+        setTimeout(() => {
+          error.value = null;
+        }, 3000);
+        
+        if (audioPlayer.value) {
+          audioPlayer.value.pause();
+          audioPlayer.value.src = '';
+        }
+        currentlyPlaying.value = null;
       }
     };
 
     const handleAudioEnded = () => {
       currentlyPlaying.value = null;
     };
+
+    const handleScroll = debounce((e) => {
+      const element = e.target;
+      if (element.scrollHeight - element.scrollTop - element.clientHeight < 50) {
+        loadMore();
+      }
+    }, 200);
+
+    watch(() => props.searchQuery, (newQuery) => {
+      if (newQuery) {
+        debouncedSearch();
+      } else {
+        searchResults.value = [];
+        hasMore.value = true;
+        page.value = 1;
+      }
+    });
+
+    watch(() => props.activeType, () => {
+      debouncedSearch();
+    });
 
     onBeforeUnmount(() => {
       if (audioPlayer.value) {
@@ -121,14 +200,16 @@ export default {
     });
 
     return {
-      searchQuery,
       searchResults,
       loading,
+      loadingMore,
+      error,
       audioPlayer,
       currentlyPlaying,
-      performSearch,
+      hasMore,
       playPreview,
-      handleAudioEnded
+      handleAudioEnded,
+      handleScroll
     };
   }
 };
@@ -141,85 +222,68 @@ export default {
   padding: 20px;
 }
 
-.search-container {
-  margin-bottom: 20px;
-}
-
-.search-input-group {
-  display: flex;
-  gap: 10px;
-}
-
-.search-input {
-  flex: 1;
-  padding: 12px;
-  font-size: 16px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  outline: none;
-  transition: border-color 0.3s;
-}
-
-.search-input:focus {
-  border-color: #1DB954;
-}
-
-.search-button {
-  padding: 0 24px;
-  font-size: 16px;
-  background: #1DB954;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.search-button:hover:not(:disabled) {
-  background: #1ed760;
-  transform: translateY(-1px);
-}
-
-.search-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
 .results-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.results-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.results-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.results-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.results-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .track-item {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 16px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
 }
 
 .track-item:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .track-image {
-  width: 64px;
-  height: 64px;
-  border-radius: 4px;
-  margin-right: 16px;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  margin-right: 20px;
+  object-fit: cover;
 }
 
 .track-info {
   flex: 1;
+  min-width: 0;
 }
 
 .track-info h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .track-info p {
@@ -228,32 +292,50 @@ export default {
   color: #666;
 }
 
+.album-name {
+  font-style: italic;
+  color: #888 !important;
+}
+
 .track-controls {
-  margin-left: 16px;
+  margin-left: 20px;
 }
 
 .play-button {
-  padding: 8px 16px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
   background: #1DB954;
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: 25px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  min-width: 80px;
 }
 
-.play-button:hover {
+.play-button:not(:disabled):hover {
   background: #1ed760;
+  transform: scale(1.05);
+}
+
+.play-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .play-button.playing {
   background: #ff5722;
 }
 
-.loading {
+.loading, .loading-more {
   text-align: center;
   padding: 20px;
   color: #666;
+}
+
+.loading-more {
+  margin-top: 10px;
 }
 
 .spinner {
@@ -276,7 +358,18 @@ export default {
   padding: 40px;
   color: #666;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 12px;
   margin-top: 20px;
+  font-size: 16px;
+}
+
+.error-message {
+  text-align: center;
+  padding: 12px;
+  margin: 20px 0;
+  background: #fee;
+  color: #e44;
+  border-radius: 8px;
+  font-size: 14px;
 }
 </style> 
