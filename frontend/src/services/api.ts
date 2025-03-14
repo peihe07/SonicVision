@@ -14,36 +14,34 @@ const apiClient = axios.create({
 const mockTrendingMusic: Music[] = [
     {
         id: 1,
-        title: "模擬音樂 1",
-        artist: "藝術家 1",
-        coverUrl: "https://via.placeholder.com/300",
-        rating: 4.5,
-        genre: "流行"
+        title: '模擬音樂 1',
+        artist: '模擬藝術家 1',
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.5
     },
     {
         id: 2,
-        title: "模擬音樂 2",
-        artist: "藝術家 2",
-        coverUrl: "https://via.placeholder.com/300",
-        rating: 4.2,
-        genre: "搖滾"
+        title: '模擬音樂 2',
+        artist: '模擬藝術家 2',
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.8
     }
 ];
 
 const mockTrendingMovies: Movie[] = [
     {
         id: 1,
-        title: "模擬電影 1",
-        poster_path: "https://via.placeholder.com/300",
+        title: '模擬電影 1',
+        poster_path: '/placeholder1.jpg',
         vote_average: 8.5,
-        release_date: "2024-01-01"
+        release_date: '2024-01-01'
     },
     {
         id: 2,
-        title: "模擬電影 2",
-        poster_path: "https://via.placeholder.com/300",
-        vote_average: 7.8,
-        release_date: "2024-02-01"
+        title: '模擬電影 2',
+        poster_path: '/placeholder2.jpg',
+        vote_average: 7.9,
+        release_date: '2024-02-01'
     }
 ];
 
@@ -145,4 +143,24 @@ export const watchlists = {
             throw error;
         }
     }
-}; 
+};
+
+export async function searchMovies(query: string): Promise<Movie[]> {
+    try {
+        const response = await apiClient.get<Movie[]>(`/movies/search?q=${encodeURIComponent(query)}`);
+        return response.data;
+    } catch (error) {
+        console.warn('搜索電影失敗，返回空結果');
+        return [];
+    }
+}
+
+export async function searchMusic(query: string): Promise<Music[]> {
+    try {
+        const response = await apiClient.get<Music[]>(`/music/search?q=${encodeURIComponent(query)}`);
+        return response.data;
+    } catch (error) {
+        console.warn('搜索音樂失敗，返回空結果');
+        return [];
+    }
+} 

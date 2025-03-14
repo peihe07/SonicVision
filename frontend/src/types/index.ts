@@ -1,10 +1,9 @@
 export interface Music {
-    id: number;
+    id: string | number;
     title: string;
     artist: string;
     coverUrl: string;
     rating: number;
-    genre?: string;
 }
 
 export interface Movie {

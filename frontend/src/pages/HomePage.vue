@@ -1,11 +1,11 @@
 <template>
   <div class="home">
     <section class="hero">
-      <h1>探索您的音樂與電影世界</h1>
-      <p class="subtitle">在 SonicVision，發現新的音樂和電影，分享您的想法，連接志同道合的人</p>
+      <h1>歡迎來到 SonicVision</h1>
+      <p class="subtitle">發現精彩的音樂和電影世界</p>
       <div class="hero-buttons">
-        <router-link to="/discover" class="btn btn-primary">開始探索</router-link>
-        <router-link to="/register" class="btn btn-outline">立即註冊</router-link>
+        <router-link to="/search" class="btn btn-primary">開始探索</router-link>
+        <router-link to="/about" class="btn btn-outline">了解更多</router-link>
       </div>
     </section>
 
@@ -42,19 +42,32 @@
           <h3>熱門音樂</h3>
           <div class="trending-items">
             <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else-if="error" class="error-message">
+              {{ error.message }}
+            </div>
             <div v-else class="trending-content">
               <MusicCard
-                v-for="music in trendingMusic"
-                :key="music.id"
-                :music="music"
+                v-for="track in trendingMusic"
+                :key="track.id"
+                :music="{
+                  id: track.id,
+                  title: track.name,
+                  artist: track.artists[0].name,
+                  coverUrl: track.album.images[0]?.url || '',
+                  rating: 4.5
+                }"
               />
             </div>
           </div>
         </div>
+
         <div class="trending-movies">
           <h3>熱門電影</h3>
           <div class="trending-items">
             <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else-if="error" class="error-message">
+              {{ error.message }}
+            </div>
             <div v-else class="trending-content">
               <MovieCard
                 v-for="movie in trendingMovies"
@@ -72,8 +85,10 @@
 <script lang="ts">
 import MovieCard from '@/components/MovieCard.vue';
 import MusicCard from '@/components/MusicCard.vue';
-import { getTrendingMovies, getTrendingMusic } from '@/services/api';
-import type { Movie, Music } from '@/types';
+import type { SpotifyTrack } from '@/services/spotify';
+import { getTrendingMusic as getSpotifyTrending } from '@/services/spotify';
+import { getTrendingMovies as getTMDBTrending } from '@/services/tmdb';
+import type { Movie } from '@/types';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
@@ -84,7 +99,7 @@ export default defineComponent({
   },
   data() {
     return {
-      trendingMusic: [] as Music[],
+      trendingMusic: [] as SpotifyTrack[],
       trendingMovies: [] as Movie[],
       loading: true,
       error: null as Error | null
@@ -92,43 +107,52 @@ export default defineComponent({
   },
   async created() {
     try {
-      await this.fetchTrendingContent()
+      await this.fetchTrendingContent();
     } catch (error) {
-      console.error('獲取熱門內容失敗:', error)
-      this.error = error as Error
+      console.error('獲取熱門內容失敗:', error);
+      this.error = error as Error;
     } finally {
-      this.loading = false
+      this.loading = false;
     }
   },
   methods: {
     async fetchTrendingContent() {
       try {
-        const [music, movies] = await Promise.all([
-          getTrendingMusic(),
-          getTrendingMovies()
-        ]);
+        console.log('開始獲取熱門內容...');
         
-        this.trendingMusic = music.data.items;
-        this.trendingMovies = movies.data.items;
+        const [musicData, moviesData] = await Promise.all([
+          getSpotifyTrending(),
+          getTMDBTrending()
+        ]);
+
+        console.log('獲取到的音樂數據:', musicData);
+        console.log('獲取到的電影數據:', moviesData);
+
+        // 直接使用 Spotify 和 TMDB 的數據
+        this.trendingMusic = musicData;
+        this.trendingMovies = moviesData;
+
       } catch (error) {
-        console.error('API 調用失敗:', error);
+        console.error('獲取熱門內容時發生錯誤:', error);
         throw error;
       }
     }
   }
-})
+});
 </script>
 
 <style scoped>
 .home {
-  text-align: center;
+  padding: 2rem;
 }
 
 .hero {
   padding: 4rem 2rem;
   background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   color: white;
-  margin: -2rem -2rem 2rem -2rem;
+  text-align: center;
+  border-radius: 12px;
+  margin-bottom: 3rem;
 }
 
 .hero h1 {
@@ -148,14 +172,27 @@ export default defineComponent({
   justify-content: center;
 }
 
+.btn {
+  padding: 0.8rem 2rem;
+  border-radius: 25px;
+  font-size: 1.1rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #e74c3c;
+  color: white;
+}
+
 .btn-outline {
-  background: transparent;
   border: 2px solid white;
   color: white;
 }
 
-.btn-outline:hover {
-  background: rgba(255, 255, 255, 0.1);
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 .features {
@@ -204,38 +241,67 @@ h2 {
 }
 
 .trending {
-  padding: 4rem 0;
-  background-color: #f8f9fa;
-  margin: 2rem -2rem -2rem -2rem;
+  margin-top: 2rem;
+}
+
+h2 {
+  text-align: center;
+  font-size: 2rem;
+  color: #2c3e50;
+  margin-bottom: 2rem;
 }
 
 .trending-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 2rem;
-  margin-top: 2rem;
-  padding: 0 2rem;
 }
 
-.trending-items {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  min-height: 200px;
+.trending-music, .trending-movies {
+  background: #f8f9fa;
+  padding: 2rem;
+  border-radius: 12px;
 }
 
-.placeholder-item {
-  color: #666;
-  font-style: italic;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
+h3 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
 }
 
 .trending-content {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
+}
+
+.placeholder-item {
+  text-align: center;
+  padding: 2rem;
+  background: #eee;
+  border-radius: 8px;
+  color: #666;
+}
+
+.error-message {
+  color: #e74c3c;
+  text-align: center;
+  padding: 1rem;
+  background: #fde2e2;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .trending-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .hero {
+    padding: 3rem 1rem;
+  }
+  
+  .hero h1 {
+    font-size: 2rem;
+  }
 }
 </style> 
