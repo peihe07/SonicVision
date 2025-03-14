@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.VUE_APP_API_URL || '/api';
 
 // 創建 axios 實例
 const api = axios.create({
@@ -39,12 +39,12 @@ api.interceptors.response.use(
 
 // 認證相關 API
 export const auth = {
-    login: (data) => api.post('/auth/login', data),
-    register: (data) => api.post('/auth/register', data),
-    logout: () => api.post('/auth/logout'),
-    getProfile: () => api.get('/auth/profile'),
-    updateProfile: (data) => api.put('/auth/profile', data),
-    googleAuth: (token) => api.post('/auth/google', { token })
+    login: (data) => api.post('/login', data),
+    register: (data) => api.post('/register', data),
+    logout: () => api.post('/logout'),
+    getProfile: () => api.get('/profile'),
+    updateProfile: (data) => api.put('/profile', data),
+    googleAuth: (token) => api.post('/google', { token })
 };
 
 // 音樂相關 API

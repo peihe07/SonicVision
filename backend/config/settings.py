@@ -1,33 +1,42 @@
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 允許所有網域訪問 API（開發模式用，正式環境請設定特定來源）
-CORS_ALLOW_ALL_ORIGINS = True
+# 判斷是否為開發環境
+DEBUG = True
+DEVELOPMENT = DEBUG
 
-# 允許 Vue.js 向 Django 發送請求（正式環境請指定來源）
-CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5173",  # Vue 開發伺服器
-    "http://localhost:5173",
-    "http://127.0.0.1:8080",  # Vue 開發伺服器
-    "http://localhost:8080",
-]
+# 添加前端構建文件的路徑
+if DEVELOPMENT:
+    FRONTEND_DIR = BASE_DIR.parent / 'frontend' / 'public'  # 開發模式使用 public 目錄
+else:
+    FRONTEND_DIR = BASE_DIR.parent / 'frontend' / 'dist'  # 生產模式使用 dist 目錄
 
-# 允許跨域發送 Cookie（如果 API 需要身份驗證）
-CORS_ALLOW_CREDENTIALS = True
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4w%fs14ztb!^l!o#10r*&vj=#'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
 ALLOWED_HOSTS = ['*']
 
+# 允許所有網域訪問 API（開發模式用，正式環境請設定特定來源）
+CORS_ALLOW_ALL_ORIGINS = True
+
+# 允許 Vue.js 向 Django 發送請求
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+]
+
+# 允許跨域發送 Cookie
+CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,11 +48,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'api',
     'corsheaders',
-
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -53,12 +62,27 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+if DEVELOPMENT:
+    MIDDLEWARE.remove('whitenoise.middleware.WhiteNoiseMiddleware')
+
 ROOT_URLCONF = 'config.urls'
 
+# 靜態文件配置
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    FRONTEND_DIR,
+]
+
+# 只在生產環境使用 WhiteNoise
+if not DEVELOPMENT:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# 添加模板目錄
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [FRONTEND_DIR],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -115,11 +139,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

@@ -59,6 +59,8 @@
 </template>
 
 <script>
+import { auth } from '@/services/api';
+
 export default {
   name: 'LoginPage',
   data() {
@@ -75,25 +77,29 @@ export default {
   methods: {
     async handleLogin() {
       try {
-        this.loading = true
-        this.error = null
+        this.loading = true;
+        this.error = null;
         
-        // TODO: 實現登入邏輯
-        // const response = await this.$api.auth.login(this.form)
-        // localStorage.setItem('token', response.data.token)
-        // this.$router.push('/discover')
+        const response = await auth.login({
+          email: this.form.email,
+          password: this.form.password
+        });
+        
+        localStorage.setItem('token', response.data.access);
+        this.$router.push('/discover');
         
       } catch (err) {
-        this.error = '登入失敗，請檢查您的帳號密碼'
+        console.error('Login error:', err);
+        this.error = '登入失敗，請檢查您的帳號密碼';
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
     async handleGoogleLogin() {
       try {
         // TODO: 實現 Google 登入邏輯
       } catch (err) {
-        this.error = '使用 Google 登入失敗，請稍後再試'
+        this.error = '使用 Google 登入失敗，請稍後再試';
       }
     }
   }
