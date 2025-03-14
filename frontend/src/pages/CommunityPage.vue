@@ -149,7 +149,8 @@
 <script lang="ts">
 import { useAuthStore } from '@/store/modules/auth';
 import { useCommunityStore } from '@/store/modules/community';
-import type { NewPost, Post } from '@/types';
+import type { Post } from '@/types';
+import type { NewPost as NewPostType } from '@/types/api';
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 export default defineComponent({
@@ -158,10 +159,10 @@ export default defineComponent({
     const authStore = useAuthStore();
     const communityStore = useCommunityStore();
     const newPostDialog = ref(false);
-    const newPost = ref<NewPost>({
+    const newPost = ref<NewPostType>({
       title: '',
-      category: '全部',
-      content: ''
+      content: '',
+      media_url: undefined
     });
 
     const posts = computed(() => communityStore.posts);
@@ -189,7 +190,6 @@ export default defineComponent({
 
     const validPost = computed(() => {
       return newPost.value.title.trim() !== '' && 
-             newPost.value.category !== '' && 
              newPost.value.content.trim() !== '';
     });
 
@@ -235,11 +235,7 @@ export default defineComponent({
         };
         await communityStore.createPost(postData);
         newPostDialog.value = false;
-        newPost.value = {
-          title: '',
-          category: '全部',
-          content: ''
-        };
+        resetForm();
       } catch (err) {
         console.error('發布貼文失敗:', err);
       }
@@ -276,6 +272,14 @@ export default defineComponent({
       newPostDialog.value = true;
     };
 
+    const resetForm = () => {
+      newPost.value = {
+        title: '',
+        content: '',
+        media_url: undefined
+      };
+    };
+
     onMounted(async () => {
       await communityStore.fetchPosts();
     });
@@ -298,7 +302,8 @@ export default defineComponent({
       getCategoryColor,
       openNewPostDialog,
       isLoading,
-      error
+      error,
+      resetForm
     };
   }
 });

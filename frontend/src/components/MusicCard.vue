@@ -1,5 +1,5 @@
 <template>
-    <div class="music-card">
+    <div class="music-card" @click="handleCardClick">
         <img :src="music.coverUrl" :alt="music.title" class="music-poster">
         <div class="music-info">
             <h3>{{ music.title }}</h3>
@@ -7,13 +7,7 @@
                 <span class="artist">🎤 {{ music.artist }}</span>
                 <span class="rating">⭐ {{ music.rating.toFixed(1) }}</span>
             </div>
-            <div class="play-buttons">
-                <a v-if="music.spotifyUrl" 
-                   :href="music.spotifyUrl" 
-                   target="_blank" 
-                   class="play-button spotify">
-                    <i class="fab fa-spotify"></i> Spotify
-                </a>
+            <div class="play-buttons" @click.stop>
                 <a v-if="music.youtubeUrl" 
                    :href="music.youtubeUrl" 
                    target="_blank" 
@@ -39,6 +33,13 @@ export default defineComponent({
             type: Object as PropType<Music>,
             required: true
         }
+    },
+    methods: {
+        handleCardClick() {
+            if (this.music.spotifyUrl) {
+                window.open(this.music.spotifyUrl, '_blank');
+            }
+        }
     }
 });
 </script>
@@ -51,6 +52,7 @@ export default defineComponent({
     overflow: hidden;
     transition: transform 0.3s ease;
     position: relative;
+    cursor: pointer;
 }
 
 .music-card:hover {

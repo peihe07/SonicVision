@@ -27,11 +27,11 @@
                   {{ error }}
                 </v-alert>
                 <v-alert
-                  v-if="success"
+                  v-if="message"
                   type="success"
                   class="mb-4"
                 >
-                  {{ success }}
+                  {{ message }}
                 </v-alert>
                 <v-btn
                   block
@@ -61,31 +61,28 @@
 </template>
 
 <script lang="ts">
-import { auth } from '@/services/api';
+import { authAPI } from '@/services/api';
 import { defineComponent, ref } from 'vue';
 
 export default defineComponent({
   name: 'ForgotPasswordPage',
   setup() {
     const email = ref('');
+    const message = ref('');
+    const error = ref('');
     const loading = ref(false);
-    const error = ref<string | null>(null);
-    const success = ref<string | null>(null);
 
     const handleSubmit = async () => {
-      if (!email.value) return;
-
       try {
         loading.value = true;
-        error.value = null;
-        success.value = null;
+        error.value = '';
+        message.value = '';
 
-        await auth.requestPasswordReset(email.value);
-        success.value = '重設密碼連結已發送到您的電子郵件';
-        email.value = '';
+        await authAPI.forgotPassword(email.value);
+        message.value = '重置密碼鏈接已發送到您的郵箱';
       } catch (err) {
-        error.value = '發送重設密碼連結失敗，請稍後再試';
-        console.error('重設密碼請求失敗:', err);
+        error.value = '發送重置密碼郵件失敗';
+        message.value = '';
       } finally {
         loading.value = false;
       }
@@ -93,9 +90,9 @@ export default defineComponent({
 
     return {
       email,
-      loading,
+      message,
       error,
-      success,
+      loading,
       handleSubmit
     };
   }

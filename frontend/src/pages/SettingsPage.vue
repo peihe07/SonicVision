@@ -49,7 +49,7 @@
           <label class="switch">
             <input 
               type="checkbox" 
-              v-model="notificationSettings.email"
+              v-model="notificationSettings.email_notifications"
               @change="handleNotificationChange"
             >
             <span class="slider"></span>
@@ -63,7 +63,7 @@
           <label class="switch">
             <input 
               type="checkbox" 
-              v-model="notificationSettings.newFollower"
+              v-model="notificationSettings.push_notifications"
               @change="handleNotificationChange"
             >
             <span class="slider"></span>
@@ -94,14 +94,14 @@
             <h3>公開個人資料</h3>
             <p>允許其他用戶查看您的個人資料</p>
           </div>
-          <label class="switch">
-            <input 
-              type="checkbox" 
-              v-model="privacySettings.publicProfile"
-              @change="handlePrivacyChange"
-            >
-            <span class="slider"></span>
-          </label>
+          <select 
+            v-model="privacySettings.profile_visibility"
+            @change="handlePrivacyChange"
+            class="form-select"
+          >
+            <option value="public">公開</option>
+            <option value="private">私密</option>
+          </select>
         </div>
         <div class="setting-item">
           <div class="setting-info">
@@ -111,7 +111,7 @@
           <label class="switch">
             <input 
               type="checkbox" 
-              v-model="privacySettings.showActivity"
+              v-model="privacySettings.show_activity"
               @change="handlePrivacyChange"
             >
             <span class="slider"></span>
@@ -162,6 +162,7 @@
 
 <script lang="ts">
 import { useAuthStore } from '@/store/modules/auth';
+import type { NotificationSettings, PasswordUpdateData, PrivacySettings } from '@/types/api';
 import { defineComponent, ref } from 'vue';
 
 export default defineComponent({
@@ -177,15 +178,15 @@ export default defineComponent({
       confirmPassword: ''
     });
 
-    const notificationSettings = ref({
-      email: true,
-      newFollower: true,
+    const notificationSettings = ref<NotificationSettings>({
+      email_notifications: true,
+      push_notifications: true,
       postInteraction: true
     });
 
-    const privacySettings = ref({
-      publicProfile: true,
-      showActivity: true,
+    const privacySettings = ref<PrivacySettings>({
+      profile_visibility: 'public' as const,
+      show_activity: true,
       searchable: true
     });
 
@@ -197,10 +198,12 @@ export default defineComponent({
 
       try {
         passwordLoading.value = true;
-        await authStore.updatePassword({
-          currentPassword: passwordForm.value.currentPassword,
-          newPassword: passwordForm.value.newPassword
-        });
+        const passwordData: PasswordUpdateData = {
+          current_password: passwordForm.value.currentPassword,
+          new_password: passwordForm.value.newPassword,
+          confirm_password: passwordForm.value.confirmPassword
+        };
+        await authStore.updatePassword(passwordData);
         // TODO: 顯示成功訊息
         passwordForm.value = {
           currentPassword: '',
@@ -464,5 +467,20 @@ input:checked + .slider:before {
 .btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.form-select {
+  padding: 0.5rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.form-select:focus {
+  border-color: #42b983;
+  outline: none;
 }
 </style> 

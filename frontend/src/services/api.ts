@@ -1,8 +1,9 @@
-import type { ApiResponse, Movie, Music, NewPost, User } from '@/types';
+import type { ApiResponse, Movie, Music, NewPost } from '@/types';
+import type { LoginCredentials, NotificationSettings, PasswordUpdateData, PrivacySettings, ProfileUpdateData, RegisterData, User } from '@/types/api';
 import type { InternalAxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
 
 // 創建 axios 實例
 const apiClient = axios.create({
@@ -30,7 +31,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     }
 
     // 添加 JWT Token（如果存在）
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     if (token && config.headers) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -47,7 +48,8 @@ apiClient.interceptors.response.use(
     async error => {
         if (error.response?.status === 401) {
             // 清除無效的 token
-            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
         }
         return Promise.reject(error);
     }
@@ -59,15 +61,21 @@ const mockTrendingMusic: Music[] = [
         id: 1,
         title: '模擬音樂 1',
         artist: '模擬藝術家 1',
-        albumCover: 'https://via.placeholder.com/300',
-        previewUrl: 'https://example.com/preview1.mp3'
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.5,
+        previewUrl: 'https://example.com/preview1.mp3',
+        spotifyUrl: 'https://open.spotify.com/track/example1',
+        youtubeUrl: 'https://www.youtube.com/watch?v=example1'
     },
     {
         id: 2,
         title: '模擬音樂 2',
         artist: '模擬藝術家 2',
-        albumCover: 'https://via.placeholder.com/300',
-        previewUrl: 'https://example.com/preview2.mp3'
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.3,
+        previewUrl: 'https://example.com/preview2.mp3',
+        spotifyUrl: 'https://open.spotify.com/track/example2',
+        youtubeUrl: 'https://www.youtube.com/watch?v=example2'
     }
 ];
 
@@ -116,90 +124,62 @@ export const getTrendingMovies = async (): Promise<ApiResponse<Movie[]>> => {
     }
 };
 
-export const auth = {
-    login: async (credentials: { username: string; password: string }) => {
-        const response = await apiClient.post('/auth/login', credentials);
-        return response.data;
+export const authAPI = {
+    login: async (credentials: LoginCredentials) => {
+        return apiClient.post('/token/', credentials);
     },
-
-    register: async (userData: { username: string; email: string; password: string }) => {
-        const response = await apiClient.post('/auth/register', userData);
-        return response.data;
+    register: async (userData: RegisterData) => {
+        return apiClient.post('/auth/register/', userData);
     },
-
+    refreshToken: async (refresh: string) => {
+        return apiClient.post('/token/refresh/', { refresh });
+    },
+    forgotPassword: async (email: string) => {
+        return apiClient.post('/auth/forgot-password/', { email });
+    },
     logout: async () => {
-        const response = await apiClient.post('/auth/logout');
+        return apiClient.post('/auth/logout/');
+    },
+    getProfile: async (): Promise<User> => {
+        const response = await apiClient.get('/auth/profile/');
         return response.data;
     },
-
-    getProfile: async () => {
-        const response = await apiClient.get('/auth/profile');
-        return response.data;
-    },
-
-    updateProfile: async (profileData: Partial<User> & { avatar?: File }) => {
+    updateProfile: async (profileData: ProfileUpdateData): Promise<User> => {
         const formData = new FormData();
         Object.entries(profileData).forEach(([key, value]) => {
             if (value !== undefined) {
-                if (key === 'avatar') {
-                    formData.append(key, value as File);
-                } else {
-                    formData.append(key, String(value));
-                }
+                formData.append(key, value);
             }
         });
-        const response = await apiClient.patch('/auth/profile/', formData, {
+        const response = await apiClient.put('/auth/profile/', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
         });
         return response.data;
     },
-
-    updatePassword: async (passwordData: { currentPassword: string; newPassword: string }) => {
-        const response = await apiClient.post('/auth/password/change/', passwordData);
-        return response.data;
+    updatePassword: async (passwordData: PasswordUpdateData) => {
+        return apiClient.put('/auth/password/', passwordData);
     },
-
-    updateNotificationSettings: async (settings: {
-        email: boolean;
-        newFollower: boolean;
-        postInteraction: boolean;
-    }) => {
-        const response = await apiClient.patch('/auth/settings/notifications/', settings);
-        return response.data;
-    },
-
-    updatePrivacySettings: async (settings: {
-        publicProfile: boolean;
-        showActivity: boolean;
-        searchable: boolean;
-    }) => {
-        const response = await apiClient.patch('/auth/settings/privacy/', settings);
-        return response.data;
-    },
-
-    deactivateAccount: async () => {
-        const response = await apiClient.post('/auth/deactivate/');
-        return response.data;
-    },
-
-    deleteAccount: async () => {
-        const response = await apiClient.delete('/auth/delete/');
-        return response.data;
-    },
-
-    requestPasswordReset: async (email: string) => {
-        const response = await apiClient.post('/auth/password/reset/', { email });
-        return response.data;
-    },
-
-    resetPassword: async (token: string, newPassword: string) => {
-        const response = await apiClient.post('/auth/password/reset/confirm/', {
-            token,
-            new_password: newPassword
+    updateNotificationSettings: async (settings: NotificationSettings) => {
+        return apiClient.put('/auth/settings/notifications/', {
+            email_notifications: settings.email_notifications,
+            push_notifications: settings.push_notifications,
+            post_interaction: settings.postInteraction
         });
-        return response.data;
+    },
+    updatePrivacySettings: async (settings: PrivacySettings) => {
+        return apiClient.put('/auth/settings/privacy/', {
+            profile_visibility: settings.profile_visibility,
+            show_activity: settings.show_activity,
+            searchable: settings.searchable
+        });
+    },
+    deactivateAccount: async () => {
+        return apiClient.post('/auth/deactivate/');
+    },
+    deleteAccount: async () => {
+        return apiClient.delete('/auth/account/');
     }
 };
 

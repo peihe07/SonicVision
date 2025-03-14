@@ -1,189 +1,163 @@
-import { auth } from '@/services/api';
+import { authAPI } from '@/services/api';
+import type {
+    User as ApiUser,
+    LoginCredentials,
+    NotificationSettings,
+    PasswordUpdateData,
+    PrivacySettings,
+    ProfileUpdateData
+} from '@/types/api';
 import { defineStore } from 'pinia';
 
-export interface User {
-    id: number;
-    username: string;
-    email: string;
-    avatar?: string | File;  // 修改為可以接受 string 或 File 類型
-    bio?: string;
-}
-
-interface AuthState {
-    user: User | null;
-    token: string | null;
-    loading: boolean;
-    error: string | null;
-}
-
 export const useAuthStore = defineStore('auth', {
-    state: (): AuthState => ({
-        user: null,
-        token: localStorage.getItem('token'),
-        loading: false,
-        error: null,
+    state: () => ({
+        currentUser: null as ApiUser | null,
+        token: localStorage.getItem('access_token'),
+        refreshToken: localStorage.getItem('refresh_token'),
+        error: null as string | null
     }),
 
     getters: {
-        isAuthenticated: (state): boolean => !!state.token && !!state.user,
-        currentUser: (state): User | null => state.user,
+        isAuthenticated(): boolean {
+            return !!this.token && !!this.currentUser;
+        }
     },
 
     actions: {
+        setUser(user: ApiUser | null) {
+            this.currentUser = user;
+        },
+
         setToken(token: string | null) {
             this.token = token;
             if (token) {
-                localStorage.setItem('token', token);
+                localStorage.setItem('access_token', token);
             } else {
-                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
             }
         },
 
-        setUser(user: User | null) {
-            this.user = user;
-        },
-
-        async login(credentials: { username: string; password: string }) {
-            this.loading = true;
+        async login(credentials: LoginCredentials) {
             this.error = null;
             try {
-                const response = await auth.login(credentials);
-                this.setToken(response.token);
-                this.setUser(response.user);
+                const response = await authAPI.login(credentials);
+                const { access, refresh } = response.data;
+                this.setToken(access);
+                localStorage.setItem('refresh_token', refresh);
+                await this.fetchUserProfile();
             } catch (error) {
                 this.error = '登入失敗';
                 throw error;
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        async register(userData: { username: string; email: string; password: string }) {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await auth.register(userData);
-                this.setToken(response.token);
-                this.setUser(response.user);
-            } catch (error) {
-                this.error = '註冊失敗';
-                throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
         async logout() {
             try {
-                await auth.logout();
+                await authAPI.logout();
             } catch (error) {
                 console.error('登出時發生錯誤:', error);
             } finally {
                 this.setToken(null);
                 this.setUser(null);
+                localStorage.removeItem('refresh_token');
             }
         },
 
-        async checkAuth() {
-            if (!this.token) return;
-
+        async fetchUserProfile() {
             try {
-                const user = await auth.getProfile();
+                const user = await authAPI.getProfile();
                 this.setUser(user);
             } catch (error) {
                 this.setToken(null);
-                this.setUser(null);
+                throw error;
             }
         },
 
-        async updateProfile(profileData: Partial<User> & { avatar?: File }) {
-            this.loading = true;
+        async updateProfile(profileData: ProfileUpdateData) {
             this.error = null;
             try {
-                const updatedUser = await auth.updateProfile(profileData);
+                const updatedUser = await authAPI.updateProfile(profileData);
                 this.setUser(updatedUser);
             } catch (error) {
                 this.error = '更新個人資料失敗';
                 throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
-        async updatePassword(passwordData: { currentPassword: string; newPassword: string }) {
-            this.loading = true;
+        async register(userData: { username: string; email: string; password: string }) {
             this.error = null;
             try {
-                await auth.updatePassword(passwordData);
+                const response = await authAPI.register(userData);
+                this.setToken(response.data.access);
+                this.setUser(response.data.user);
+            } catch (error) {
+                this.error = '註冊失敗';
+                throw error;
+            }
+        },
+
+        async updatePassword(passwordData: PasswordUpdateData) {
+            this.error = null;
+            try {
+                await authAPI.updatePassword(passwordData);
             } catch (error) {
                 this.error = '更新密碼失敗';
                 throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
-        async updateNotificationSettings(settings: {
-            email: boolean;
-            newFollower: boolean;
-            postInteraction: boolean;
-        }) {
-            this.loading = true;
+        async updateNotificationSettings(settings: NotificationSettings) {
             this.error = null;
             try {
-                await auth.updateNotificationSettings(settings);
+                await authAPI.updateNotificationSettings(settings);
             } catch (error) {
                 this.error = '更新通知設定失敗';
                 throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
-        async updatePrivacySettings(settings: {
-            publicProfile: boolean;
-            showActivity: boolean;
-            searchable: boolean;
-        }) {
-            this.loading = true;
+        async updatePrivacySettings(settings: PrivacySettings) {
             this.error = null;
             try {
-                await auth.updatePrivacySettings(settings);
+                await authAPI.updatePrivacySettings(settings);
             } catch (error) {
                 this.error = '更新隱私設定失敗';
                 throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
         async deactivateAccount() {
-            this.loading = true;
             this.error = null;
             try {
-                await auth.deactivateAccount();
+                await authAPI.deactivateAccount();
                 this.setToken(null);
                 this.setUser(null);
             } catch (error) {
                 this.error = '停用帳號失敗';
                 throw error;
-            } finally {
-                this.loading = false;
             }
         },
 
         async deleteAccount() {
-            this.loading = true;
             this.error = null;
             try {
-                await auth.deleteAccount();
+                await authAPI.deleteAccount();
                 this.setToken(null);
                 this.setUser(null);
             } catch (error) {
                 this.error = '刪除帳號失敗';
                 throw error;
-            } finally {
-                this.loading = false;
+            }
+        },
+
+        async checkAuth() {
+            if (this.token) {
+                try {
+                    await this.fetchUserProfile();
+                } catch (error) {
+                    this.setToken(null);
+                    this.setUser(null);
+                }
             }
         }
     }

@@ -8,8 +8,18 @@ export interface User {
 
 export interface ApiResponse<T> {
     data: T;
-    message?: string;
-    error?: string;
+    message: string;
+}
+
+export interface LoginCredentials {
+    username: string;
+    password: string;
+}
+
+export interface RegisterData {
+    username: string;
+    email: string;
+    password: string;
 }
 
 export interface Movie {
@@ -25,8 +35,11 @@ export interface Music {
     id: number;
     title: string;
     artist: string;
-    albumCover: string;
-    previewUrl: string;
+    coverUrl: string;
+    rating: number;
+    spotifyUrl?: string;
+    youtubeUrl?: string;
+    previewUrl?: string;
 }
 
 export interface TMDBGenre {
@@ -91,5 +104,5 @@ export interface Post {
 export interface NewPost {
     title: string;
     content: string;
-    category: string;
+    media_url?: string;
 } 

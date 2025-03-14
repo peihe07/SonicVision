@@ -30,7 +30,7 @@
     <div class="profile-content">
       <div class="profile-section">
         <h2>基本資料</h2>
-        <form @submit.prevent="handleProfileUpdate" class="profile-form">
+        <form @submit.prevent="handleSubmit" class="profile-form">
           <div class="form-group">
             <label>用戶名稱</label>
             <input 
@@ -103,6 +103,7 @@
 
 <script lang="ts">
 import { useAuthStore } from '@/store/modules/auth';
+import type { ProfileUpdateData } from '@/types/api';
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 export default defineComponent({
@@ -118,7 +119,8 @@ export default defineComponent({
     const profileForm = ref({
       username: currentUser.value?.username || '',
       email: currentUser.value?.email || '',
-      bio: currentUser.value?.bio || ''
+      bio: currentUser.value?.bio || '',
+      avatar: null as File | null
     });
 
     const stats = ref({
@@ -138,9 +140,7 @@ export default defineComponent({
         const file = input.files[0];
         try {
           loading.value = true;
-          await authStore.updateProfile({
-            avatar: file
-          });
+          profileForm.value.avatar = file;
         } catch (error) {
           console.error('上傳頭像失敗:', error);
         } finally {
@@ -149,18 +149,21 @@ export default defineComponent({
       }
     };
 
-    const handleProfileUpdate = async () => {
+    const handleSubmit = async () => {
       try {
-        loading.value = true;
-        await authStore.updateProfile({
+        const updateData: ProfileUpdateData = {
           username: profileForm.value.username,
           email: profileForm.value.email,
           bio: profileForm.value.bio
-        });
+        };
+        
+        if (profileForm.value.avatar) {
+          updateData.avatar = profileForm.value.avatar;
+        }
+        
+        await authStore.updateProfile(updateData);
       } catch (error) {
         console.error('更新個人資料失敗:', error);
-      } finally {
-        loading.value = false;
       }
     };
 
@@ -186,7 +189,7 @@ export default defineComponent({
       stats,
       triggerFileInput,
       handleAvatarChange,
-      handleProfileUpdate
+      handleSubmit
     };
   }
 });

@@ -28,12 +28,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 允許 Vue.js 向 Django 發送請求
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:8080",
     "http://localhost:8080",
-    "http://127.0.0.1:8083",
-    "http://localhost:8083",
 ]
 
 # 允許跨域發送 Cookie
@@ -75,8 +70,8 @@ REST_FRAMEWORK = {
 # JWT 配置
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -115,6 +110,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'api',
     'corsheaders',
+    'accounts',  # 確保你的認證應用已添加
 ]
 
 MIDDLEWARE = [

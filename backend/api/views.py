@@ -66,19 +66,19 @@ def initialize_spotify_client():
         }
         data = {'grant_type': 'client_credentials'}
         
-        logger.info("正在獲取訪問令牌...")
+        logger.info("正在獲取token...")
         response = requests.post('https://accounts.spotify.com/api/token', headers=headers, data=data)
         
         if response.status_code != 200:
-            logger.error(f"獲取訪問令牌失敗: {response.status_code} - {response.text}")
+            logger.error(f"獲取token失敗: {response.status_code} - {response.text}")
             return False
             
         access_token = response.json().get('access_token')
         if not access_token:
-            logger.error("響應中沒有訪問令牌")
+            logger.error("回應中沒有token")
             return False
             
-        logger.info("成功獲取訪問令牌")
+        logger.info("成功獲取token")
         
         # 使用訪問令牌初始化 Spotify 客戶端
         spotify = spotipy.Spotify(
