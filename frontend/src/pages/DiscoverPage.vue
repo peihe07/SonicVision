@@ -2,13 +2,19 @@
   <div class="discover">
     <div class="discover-header">
       <div class="search-section">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          @input="handleSearch" 
-          :placeholder="searchPlaceholder" 
-          class="search-input"
-        >
+        <div class="search-input-group">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            @keyup.enter="handleSearch"
+            :placeholder="searchPlaceholder" 
+            class="search-input"
+          >
+          <button class="search-btn" @click="handleSearch">
+            <i class="fas fa-search"></i>
+            搜尋
+          </button>
+        </div>
         <div class="filter-buttons">
           <button 
             :class="['filter-btn', { active: activeType === 'all' }]"
@@ -30,7 +36,7 @@
       <div class="sidebar">
         <div class="filter-section">
           <h3>分類篩選</h3>
-          <div class="filter-group">
+          <div v-if="activeType === 'music' || activeType === 'all'" class="filter-group">
             <h4>音樂類型</h4>
             <div v-for="genre in musicGenres" :key="genre.id" class="filter-item">
               <input 
@@ -42,7 +48,7 @@
               <label :for="genre.id">{{ genre.name }}</label>
             </div>
           </div>
-          <div class="filter-group">
+          <div v-if="activeType === 'movie' || activeType === 'all'" class="filter-group">
             <h4>電影類型</h4>
             <div v-for="genre in movieGenres" :key="genre.id" class="filter-item">
               <input 
@@ -59,21 +65,10 @@
 
       <div class="main-content">
         <div v-if="activeType === 'music' || activeType === 'all'">
-          <SpotifySearch :search-query="searchQuery" :active-type="activeType" />
+          <SpotifySearch :search-query="currentSearchQuery" :active-type="activeType" />
         </div>
-        <div v-if="activeType === 'movie' || activeType === 'all'" class="results-grid">
-          <div v-for="item in filteredMovies" :key="item.id" class="item-card">
-            <img :src="item.image" :alt="item.title" class="item-image">
-            <div class="item-info">
-              <h3>{{ item.title }}</h3>
-              <p class="item-meta">年份：{{ item.meta }}</p>
-              <div class="item-rating">
-                <span class="stars">★★★★☆</span>
-                <span class="rating-number">4.2</span>
-              </div>
-              <button class="btn btn-primary btn-sm">查看詳情</button>
-            </div>
-          </div>
+        <div v-if="activeType === 'movie' || activeType === 'all'">
+          <MovieSearch :search-query="currentSearchQuery" :active-type="activeType" />
         </div>
       </div>
     </div>
@@ -81,36 +76,32 @@
 </template>
 
 <script>
-import { debounce } from 'lodash-es';
 import { computed, onMounted, ref } from 'vue';
+import MovieSearch from '../components/MovieSearch.vue';
 import SpotifySearch from '../components/SpotifySearch.vue';
+import { getMovieGenres } from '../services/tmdb';
 
 export default {
   name: 'DiscoverPage',
   components: {
-    SpotifySearch
+    SpotifySearch,
+    MovieSearch
   },
   setup() {
     const searchQuery = ref('');
+    const currentSearchQuery = ref('');
     const activeType = ref('all');
     const loading = ref(false);
     const error = ref(null);
     const selectedMusicGenres = ref([]);
     const selectedMovieGenres = ref([]);
-    const movies = ref([]);
+    const movieGenres = ref([]);
 
     const musicGenres = [
       { id: 'pop', name: '流行' },
       { id: 'rock', name: '搖滾' },
       { id: 'jazz', name: '爵士' },
       { id: 'classical', name: '古典' }
-    ];
-
-    const movieGenres = [
-      { id: 'action', name: '動作' },
-      { id: 'comedy', name: '喜劇' },
-      { id: 'drama', name: '劇情' },
-      { id: 'scifi', name: '科幻' }
     ];
 
     const searchPlaceholder = computed(() => {
@@ -124,67 +115,35 @@ export default {
       }
     });
 
-    const filteredMovies = computed(() => {
-      let filtered = movies.value;
-      
-      if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(movie => 
-          movie.title.toLowerCase().includes(query) ||
-          movie.meta.toLowerCase().includes(query)
-        );
-      }
-      
-      if (selectedMovieGenres.value.length > 0) {
-        filtered = filtered.filter(movie => 
-          selectedMovieGenres.value.includes(movie.genre)
-        );
-      }
-      
-      return filtered;
-    });
-
-    // 防抖動的搜尋處理
-    const debouncedSearch = debounce(() => {
-      // 這裡可以添加額外的搜尋邏輯
-      error.value = null;
-    }, 300);
-
     const handleSearch = () => {
-      loading.value = true;
-      debouncedSearch();
+      error.value = null;
+      currentSearchQuery.value = searchQuery.value;
     };
 
     const setActiveType = (type) => {
       activeType.value = type;
       searchQuery.value = '';
+      currentSearchQuery.value = '';
       error.value = null;
     };
 
-    // 模擬載入電影數據
-    const fetchMovies = async () => {
-      loading.value = true;
-      error.value = null;
-      
+    // 載入電影類型
+    const fetchMovieGenres = async () => {
       try {
-        // 這裡應該是實際的 API 調用
-        const response = await fetch('/api/movies');
-        const data = await response.json();
-        movies.value = data;
+        const response = await getMovieGenres();
+        movieGenres.value = response.genres;
       } catch (err) {
-        error.value = '載入電影數據失敗，請稍後再試';
-        console.error('Error fetching movies:', err);
-      } finally {
-        loading.value = false;
+        console.error('Error fetching movie genres:', err);
       }
     };
 
     onMounted(() => {
-      fetchMovies();
+      fetchMovieGenres();
     });
 
     return {
       searchQuery,
+      currentSearchQuery,
       activeType,
       loading,
       error,
@@ -192,14 +151,12 @@ export default {
       selectedMovieGenres,
       musicGenres,
       movieGenres,
-      movies,
       searchPlaceholder,
-      filteredMovies,
       handleSearch,
       setActiveType
     };
   }
-}
+};
 </script>
 
 <style scoped>
@@ -220,13 +177,40 @@ export default {
   margin: 0 auto;
 }
 
+.search-input-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .search-input {
-  width: 100%;
+  flex: 1;
   padding: 1rem;
   font-size: 1.1rem;
   border: 2px solid #ddd;
   border-radius: 8px;
-  margin-bottom: 1rem;
+}
+
+.search-btn {
+  padding: 0 2rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.3s ease;
+}
+
+.search-btn:hover {
+  background: #2980b9;
+}
+
+.search-btn i {
+  font-size: 1rem;
 }
 
 .filter-buttons {

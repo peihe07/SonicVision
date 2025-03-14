@@ -23,7 +23,8 @@ module.exports = defineConfig({
       options: {
         usePolling: true,
       },
-    }
+    },
+    open: true
   },
   configureWebpack: {
     resolve: {

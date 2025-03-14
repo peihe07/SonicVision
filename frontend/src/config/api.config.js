@@ -20,6 +20,8 @@ export const API_CONFIG = {
         BASE_URL: 'https://api.themoviedb.org/3',
         IMAGE_BASE_URL: 'https://image.tmdb.org/t/p',
         API_KEY: process.env.VUE_APP_TMDB_API_KEY,
-        LANGUAGE: 'zh-TW'
+        ACCESS_TOKEN: process.env.VUE_APP_TMDB_ACCESS_TOKEN,
+        LANGUAGE: 'en-US',
+        REGION: 'US'
     }
 } 

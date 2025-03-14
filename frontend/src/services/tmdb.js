@@ -1,5 +1,5 @@
-import { API_CONFIG } from '@/config/api.config'
-import axios from 'axios'
+import { API_CONFIG } from '@/config/api.config';
+import axios from 'axios';
 
 const { TMDB } = API_CONFIG
 
@@ -8,9 +8,60 @@ const tmdbApi = axios.create({
     baseURL: TMDB.BASE_URL,
     params: {
         api_key: TMDB.API_KEY,
-        language: TMDB.LANGUAGE
+        language: TMDB.LANGUAGE,
+        region: TMDB.REGION
     }
 })
+
+// 添加請求攔截器
+tmdbApi.interceptors.request.use(config => {
+    // 確保每個請求都包含語言設置
+    config.params = {
+        ...config.params,
+        language: TMDB.LANGUAGE,
+        region: TMDB.REGION
+    };
+
+    // 調試信息
+    console.log('TMDB API 請求配置:', {
+        url: config.url,
+        method: config.method,
+        params: config.params
+    });
+
+    return config;
+});
+
+// 添加響應攔截器
+tmdbApi.interceptors.response.use(
+    response => {
+        // 調試信息
+        console.log('TMDB API 響應成功:', {
+            url: response.config.url,
+            status: response.status,
+            data: response.data
+        });
+        return response;
+    },
+    error => {
+        if (error.response) {
+            const { status, statusText, data } = error.response;
+            console.error('TMDB API 錯誤:', {
+                status,
+                statusText,
+                data,
+                url: error.config.url,
+                method: error.config.method,
+                params: error.config.params
+            });
+        } else if (error.request) {
+            console.error('TMDB API 請求錯誤:', error.request);
+        } else {
+            console.error('TMDB API 錯誤:', error.message);
+        }
+        return Promise.reject(error);
+    }
+);
 
 // 獲取圖片完整 URL
 export const getImageUrl = (path, size = 'original') => {
@@ -30,7 +81,7 @@ export const searchMovies = async (query, page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to search movies:', error)
+        console.error('搜索電影失敗:', error)
         throw error
     }
 }
@@ -45,7 +96,7 @@ export const getMovieDetails = async (movieId) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get movie details:', error)
+        console.error('獲取電影詳情失敗:', error)
         throw error
     }
 }
@@ -56,7 +107,7 @@ export const getMovieCredits = async (movieId) => {
         const response = await tmdbApi.get(`/movie/${movieId}/credits`)
         return response.data
     } catch (error) {
-        console.error('Failed to get movie credits:', error)
+        console.error('獲取電影演員陣容失敗:', error)
         throw error
     }
 }
@@ -67,7 +118,7 @@ export const getMovieVideos = async (movieId) => {
         const response = await tmdbApi.get(`/movie/${movieId}/videos`)
         return response.data
     } catch (error) {
-        console.error('Failed to get movie videos:', error)
+        console.error('獲取電影視頻失敗:', error)
         throw error
     }
 }
@@ -80,7 +131,7 @@ export const getMovieReviews = async (movieId, page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get movie reviews:', error)
+        console.error('獲取電影評論失敗:', error)
         throw error
     }
 }
@@ -93,7 +144,7 @@ export const getNowPlayingMovies = async (page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get now playing movies:', error)
+        console.error('獲取正在上映電影失敗:', error)
         throw error
     }
 }
@@ -106,7 +157,7 @@ export const getUpcomingMovies = async (page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get upcoming movies:', error)
+        console.error('獲取即將上映電影失敗:', error)
         throw error
     }
 }
@@ -119,7 +170,7 @@ export const getPopularMovies = async (page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get popular movies:', error)
+        console.error('獲取熱門電影失敗:', error)
         throw error
     }
 }
@@ -132,7 +183,7 @@ export const getTopRatedMovies = async (page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get top rated movies:', error)
+        console.error('獲取評分最高電影失敗:', error)
         throw error
     }
 }
@@ -145,7 +196,7 @@ export const getMovieRecommendations = async (movieId, page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get movie recommendations:', error)
+        console.error('獲取電影推薦失敗:', error)
         throw error
     }
 }
@@ -158,7 +209,7 @@ export const getSimilarMovies = async (movieId, page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get similar movies:', error)
+        console.error('獲取相似電影失敗:', error)
         throw error
     }
 }
@@ -166,11 +217,15 @@ export const getSimilarMovies = async (movieId, page = 1) => {
 // 獲取電影類型列表
 export const getMovieGenres = async () => {
     try {
-        const response = await tmdbApi.get('/genre/movie/list')
-        return response.data
+        const response = await tmdbApi.get('/genre/movie/list');
+        const genres = response.data.genres.map(genre => ({
+            ...genre,
+            name_en: genre.name // 保持與之前相同的結構，但使用英文名稱
+        }));
+        return { genres };
     } catch (error) {
-        console.error('Failed to get movie genres:', error)
-        throw error
+        console.error('Failed to fetch movie genres:', error);
+        throw error;
     }
 }
 
@@ -185,7 +240,7 @@ export const getMoviesByGenre = async (genreId, page = 1) => {
         })
         return response.data
     } catch (error) {
-        console.error('Failed to get movies by genre:', error)
+        console.error('根據類型獲取電影失敗:', error)
         throw error
     }
 }

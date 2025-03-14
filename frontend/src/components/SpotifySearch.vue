@@ -15,7 +15,7 @@
         <div class="track-info">
           <h3>{{ track.name }}</h3>
           <p>{{ track.artists.map(artist => artist.name).join(', ') }}</p>
-          <p class="album-name">專輯：{{ track.album.name }}</p>
+          <p class="album-name">Album: {{ track.album.name }}</p>
         </div>
         <div class="track-controls">
           <button
@@ -23,20 +23,20 @@
             :class="['play-button', { 'playing': currentlyPlaying === track.id }]"
             :disabled="loading"
           >
-            {{ currentlyPlaying === track.id ? '暫停' : '播放' }}
+            {{ currentlyPlaying === track.id ? 'Pause' : 'Play' }}
           </button>
         </div>
       </div>
 
       <div v-if="loadingMore" class="loading-more">
         <div class="spinner"></div>
-        <p>載入更多...</p>
+        <p>Loading more...</p>
       </div>
     </div>
 
     <div v-if="loading && !loadingMore" class="loading">
       <div class="spinner"></div>
-      <p>搜尋中...</p>
+      <p>Searching...</p>
     </div>
 
     <div v-if="error" class="error-message">
@@ -47,7 +47,7 @@
       v-if="!loading && !loadingMore && searchQuery && !searchResults.length" 
       class="no-results"
     >
-      找不到相關結果
+      No results found
     </div>
 
     <audio ref="audioPlayer" @ended="handleAudioEnded"></audio>
@@ -101,7 +101,7 @@ export default {
           hasMore.value = false;
         }
       } catch (err) {
-        error.value = '搜尋失敗，請稍後再試';
+        error.value = 'Search failed. Please try again later.';
         console.error('Search error:', err);
       } finally {
         loading.value = false;
@@ -122,7 +122,7 @@ export default {
           page.value = nextPage;
         }
       } catch (err) {
-        error.value = '載入更多失敗，請稍後再試';
+        error.value = 'Failed to load more. Please try again later.';
         console.error('Load more error:', err);
       } finally {
         loadingMore.value = false;
@@ -138,7 +138,7 @@ export default {
         }
 
         if (!track.preview_url) {
-          throw new Error('無試聽版本');
+          throw new Error('No preview available');
         }
 
         if (audioPlayer.value) {
@@ -148,12 +148,12 @@ export default {
             await audioPlayer.value.play();
             currentlyPlaying.value = track.id;
           } catch (playError) {
-            throw new Error('播放失敗，請稍後再試');
+            throw new Error('Failed to play. Please try again later.');
           }
         }
       } catch (err) {
         error.value = err.message;
-        console.error('播放錯誤:', err);
+        console.error('Playback error:', err);
         
         setTimeout(() => {
           error.value = null;

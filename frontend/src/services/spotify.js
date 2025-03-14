@@ -185,7 +185,7 @@ export const searchSpotify = async (query, type = 'track') => {
         });
 
         if (!response.data || !response.data.tracks || !response.data.tracks.items) {
-            throw new Error('無效的響應格式');
+            throw new Error('Invalid response format');
         }
 
         return {
@@ -195,32 +195,32 @@ export const searchSpotify = async (query, type = 'track') => {
             }
         };
     } catch (error) {
-        console.error('搜尋 Spotify 時發生錯誤:', error);
+        console.error('Error searching Spotify:', error);
         if (error.response?.data?.error) {
-            console.error('錯誤詳情:', error.response.data.error);
+            console.error('Error details:', error.response.data.error);
         }
-        throw new Error(error.response?.data?.error?.message || '搜尋失敗，請稍後再試');
+        throw new Error(error.response?.data?.error?.message || 'Search failed. Please try again later.');
     }
 };
 
 export const getPreviewUrl = async (trackId) => {
     try {
-        // 先檢查是否有預覽 URL
+        // Check if preview URL exists
         const response = await spotifyApi.get(`/spotify/preview/${trackId}/`);
         const previewUrl = response.data?.preview_url;
 
         if (!previewUrl) {
-            console.info(`歌曲 ${trackId} 無預覽版本`);
-            throw new Error('無試聽版本');
+            console.info(`No preview available for track ${trackId}`);
+            throw new Error('No preview available');
         }
 
         return previewUrl;
     } catch (error) {
-        console.error('獲取預覽 URL 時發生錯誤:', error);
-        if (error.message === '無試聽版本' || error.response?.status === 404) {
-            throw new Error('無試聽版本');
+        console.error('Error getting preview URL:', error);
+        if (error.message === 'No preview available' || error.response?.status === 404) {
+            throw new Error('No preview available');
         }
-        throw new Error(error.response?.data?.error || '獲取預覽失敗，請稍後再試');
+        throw new Error(error.response?.data?.error || 'Failed to get preview. Please try again later.');
     }
 };
 
