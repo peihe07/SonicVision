@@ -1,34 +1,59 @@
 # SonicVision
 
-一個現代化的音樂視覺化應用程式，使用 Django + Vue.js 構建。
+一個現代化的音樂視覺化應用程式，使用 Django + Vue.js 構建。整合 Spotify API，提供實時音樂視覺化體驗。
 
 ## 技術棧
 
 ### 後端
 - Python 3.9+
-- Django 4.x
+- Django 4.2
 - Django REST Framework
-- PostgreSQL 14
+- JWT 認證
+- PostgreSQL (生產環境)
+- Spotify API 整合
+- WebSocket 支援
 
 ### 前端
 - Vue.js 3
-- Vuex
+- TypeScript
+- Pinia (狀態管理)
 - Vue Router
+- Vuetify 3 (UI 框架)
+- Socket.IO (實時通訊)
 - Axios
+- TailwindCSS
 
 ### 開發工具
 - Docker & Docker Compose
-- Poetry (Python 依賴管理)
 - npm (Node.js 依賴管理)
+- Vue CLI
+- Black (Python 代碼格式化)
+- Flake8 (Python 代碼檢查)
+- isort (Python import 排序)
+- ESLint & TypeScript ESLint
+- SASS/SCSS
 
 ## 快速開始
 
-### 使用 Docker（推薦）
+### 使用開發腳本（推薦）
+
+1. 確保已安裝必要的開發工具
+2. 運行開發腳本：
+   ```bash
+   ./dev.sh
+   ```
+3. 訪問：
+   - 前端：http://localhost:8080
+   - 後端 API：http://localhost:8000
+   - API 文檔：http://localhost:8000/api/docs/
+
+### 使用 Docker
 
 1. 確保已安裝 Docker 和 Docker Compose
 2. 複製環境變數文件：
    ```bash
-   cp .env.example .env
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
    ```
 3. 啟動服務：
    ```bash
@@ -57,24 +82,35 @@
    ```bash
    pip install -r requirements.txt
    ```
-4. 運行遷移：
+4. 設置環境變數：
+   ```bash
+   cp .env.example .env
+   ```
+5. 運行遷移：
    ```bash
    python manage.py migrate
    ```
-5. 啟動開發服務器：
+6. 啟動開發服務器：
    ```bash
    python manage.py runserver
    ```
 
 #### 前端設置
-1. 安裝依賴：
+1. 進入前端目錄：
    ```bash
    cd frontend
+   ```
+2. 設置環境變數：
+   ```bash
+   cp .env.example .env
+   ```
+3. 安裝依賴：
+   ```bash
    npm install
    ```
-2. 啟動開發服務器：
+4. 啟動開發服務器：
    ```bash
-   npm run serve
+   npm run dev
    ```
 
 ## 開發指南
