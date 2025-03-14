@@ -9,10 +9,10 @@
             </div>
             <div class="hover-details">
                 <h4>{{ movie.title }}</h4>
-                <p>{{ movie.release_date?.split('-')[0] }}</p>
+                <p>{{ movie.releaseDate?.split('-')[0] }}</p>
                 <div class="rating">
                     <i class="fas fa-star"></i>
-                    <span>{{ movie.vote_average?.toFixed(1) }}</span>
+                    <span>{{ movie.voteAverage?.toFixed(1) }}</span>
                 </div>
             </div>
             <div class="view-details">
@@ -53,13 +53,13 @@ export default defineComponent({
     },
     computed: {
         posterUrl(): string {
-            return getImageUrl(this.movie.poster_path, 'w500');
+            return getImageUrl(this.movie.posterPath, 'w500');
         },
         rating(): number {
-            return this.movie.vote_average;
+            return this.movie.voteAverage;
         },
         formattedDate(): string {
-            const date = new Date(this.movie.release_date);
+            const date = new Date(this.movie.releaseDate);
             return date.toLocaleDateString('zh-TW', {
                 year: 'numeric',
                 month: 'long',

@@ -1,19 +1,32 @@
-export interface Music {
-    id: string | number;
-    title: string;
-    artist: string;
-    coverUrl: string;
-    rating: number;
-    spotifyUrl?: string;
-    youtubeUrl?: string;
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+    avatar?: string | File;
+    createdAt: string;
+}
+
+export interface ApiResponse<T> {
+    data: T;
+    message?: string;
+    error?: string;
 }
 
 export interface Movie {
     id: number;
     title: string;
-    poster_path: string;
-    vote_average: number;
-    release_date: string;
+    overview: string;
+    posterPath: string;
+    releaseDate: string;
+    voteAverage: number;
+}
+
+export interface Music {
+    id: number;
+    title: string;
+    artist: string;
+    albumCover: string;
+    previewUrl: string;
 }
 
 export interface TMDBGenre {
@@ -53,9 +66,30 @@ export interface TMDBMovieDetail {
     };
 }
 
-export interface ApiResponse<T> {
-    data: {
-        items: T[];
-        total: number;
-    };
+export interface Comment {
+    id: number;
+    content: string;
+    author: string;
+    authorAvatar: string;
+    createdAt: string;
+}
+
+export interface Post {
+    id: number;
+    title: string;
+    content: string;
+    author: string;
+    authorAvatar: string;
+    category: string;
+    likes: number;
+    isLiked: boolean;
+    comments: Comment[];
+    createdAt: string;
+    isExpanded?: boolean;
+}
+
+export interface NewPost {
+    title: string;
+    content: string;
+    category: string;
 } 

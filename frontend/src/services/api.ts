@@ -1,14 +1,15 @@
-import type { User } from '@/store/modules/auth';
-import type { ApiResponse, Movie, Music } from '@/types';
+import type { ApiResponse, Movie, Music, NewPost, User } from '@/types';
+import type { InternalAxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000/api';
 
 // 創建 axios 實例
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
     },
     withCredentials: true,  // 允許跨域請求攜帶 cookie
 });
@@ -21,26 +22,29 @@ const getCsrfToken = () => {
 };
 
 // 請求攔截器：添加認證信息
-apiClient.interceptors.request.use(config => {
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     // 添加 CSRF Token
     const csrfToken = getCsrfToken();
-    if (csrfToken) {
+    if (csrfToken && config.headers) {
         config.headers['X-CSRFToken'] = csrfToken;
     }
 
-    // 添加 JWT Token
+    // 添加 JWT Token（如果存在）
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && config.headers) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
 
     return config;
+}, error => {
+    console.error('請求攔截器錯誤:', error);
+    return Promise.reject(error);
 });
 
 // 響應攔截器：處理認證錯誤
 apiClient.interceptors.response.use(
     response => response,
-    error => {
+    async error => {
         if (error.response?.status === 401) {
             // 清除無效的 token
             localStorage.removeItem('token');
@@ -55,15 +59,15 @@ const mockTrendingMusic: Music[] = [
         id: 1,
         title: '模擬音樂 1',
         artist: '模擬藝術家 1',
-        coverUrl: 'https://via.placeholder.com/300',
-        rating: 4.5
+        albumCover: 'https://via.placeholder.com/300',
+        previewUrl: 'https://example.com/preview1.mp3'
     },
     {
         id: 2,
         title: '模擬音樂 2',
         artist: '模擬藝術家 2',
-        coverUrl: 'https://via.placeholder.com/300',
-        rating: 4.8
+        albumCover: 'https://via.placeholder.com/300',
+        previewUrl: 'https://example.com/preview2.mp3'
     }
 ];
 
@@ -71,100 +75,131 @@ const mockTrendingMovies: Movie[] = [
     {
         id: 1,
         title: '模擬電影 1',
-        poster_path: '/placeholder1.jpg',
-        vote_average: 8.5,
-        release_date: '2024-01-01'
+        overview: '這是一部精彩的電影',
+        posterPath: '/placeholder1.jpg',
+        releaseDate: '2024-01-01',
+        voteAverage: 8.5
     },
     {
         id: 2,
         title: '模擬電影 2',
-        poster_path: '/placeholder2.jpg',
-        vote_average: 7.9,
-        release_date: '2024-02-01'
+        overview: '這是另一部精彩的電影',
+        posterPath: '/placeholder2.jpg',
+        releaseDate: '2024-02-01',
+        voteAverage: 7.9
     }
 ];
 
-export const getTrendingMusic = async (): Promise<ApiResponse<Music>> => {
+export const getTrendingMusic = async (): Promise<ApiResponse<Music[]>> => {
     try {
-        const response = await apiClient.get<ApiResponse<Music>>('/music/trending');
+        const response = await apiClient.get<ApiResponse<Music[]>>('/music/trending');
         return response.data;
     } catch (error) {
         console.warn('使用模擬數據替代 API 響應');
         return {
-            data: {
-                items: mockTrendingMusic,
-                total: mockTrendingMusic.length
-            }
+            data: mockTrendingMusic,
+            message: '成功獲取熱門音樂'
         };
     }
 };
 
-export const getTrendingMovies = async (): Promise<ApiResponse<Movie>> => {
+export const getTrendingMovies = async (): Promise<ApiResponse<Movie[]>> => {
     try {
-        const response = await apiClient.get<ApiResponse<Movie>>('/movies/trending');
+        const response = await apiClient.get<ApiResponse<Movie[]>>('/movies/trending');
         return response.data;
     } catch (error) {
         console.warn('使用模擬數據替代 API 響應');
         return {
-            data: {
-                items: mockTrendingMovies,
-                total: mockTrendingMovies.length
-            }
+            data: mockTrendingMovies,
+            message: '成功獲取熱門電影'
         };
     }
 };
 
 export const auth = {
-    login: async (username: string, password: string) => {
-        try {
-            const response = await apiClient.post('/login/', {
-                username,
-                password
-            });
-            return response.data;
-        } catch (error) {
-            console.error('登入失敗:', error);
-            throw error;
-        }
+    login: async (credentials: { username: string; password: string }) => {
+        const response = await apiClient.post('/auth/login', credentials);
+        return response.data;
     },
-    register: async (username: string, password: string, email: string) => {
-        try {
-            const response = await apiClient.post('/register/', {
-                username,
-                password,
-                email
-            });
-            return response.data;
-        } catch (error) {
-            console.error('註冊失敗:', error);
-            throw error;
-        }
+
+    register: async (userData: { username: string; email: string; password: string }) => {
+        const response = await apiClient.post('/auth/register', userData);
+        return response.data;
     },
-    getProfile: async () => {
-        try {
-            const response = await apiClient.get('/profile/');
-            return response.data;
-        } catch (error) {
-            console.error('獲取用戶資料失敗:', error);
-            throw error;
-        }
-    },
-    updateProfile: async (userData: Partial<User>) => {
-        try {
-            const response = await apiClient.put('/profile/', userData);
-            return response.data;
-        } catch (error) {
-            console.error('更新個人資料失敗:', error);
-            throw error;
-        }
-    },
+
     logout: async () => {
-        try {
-            await apiClient.post('/logout/');
-        } catch (error) {
-            console.error('登出失敗:', error);
-            throw error;
-        }
+        const response = await apiClient.post('/auth/logout');
+        return response.data;
+    },
+
+    getProfile: async () => {
+        const response = await apiClient.get('/auth/profile');
+        return response.data;
+    },
+
+    updateProfile: async (profileData: Partial<User> & { avatar?: File }) => {
+        const formData = new FormData();
+        Object.entries(profileData).forEach(([key, value]) => {
+            if (value !== undefined) {
+                if (key === 'avatar') {
+                    formData.append(key, value as File);
+                } else {
+                    formData.append(key, String(value));
+                }
+            }
+        });
+        const response = await apiClient.patch('/auth/profile/', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    updatePassword: async (passwordData: { currentPassword: string; newPassword: string }) => {
+        const response = await apiClient.post('/auth/password/change/', passwordData);
+        return response.data;
+    },
+
+    updateNotificationSettings: async (settings: {
+        email: boolean;
+        newFollower: boolean;
+        postInteraction: boolean;
+    }) => {
+        const response = await apiClient.patch('/auth/settings/notifications/', settings);
+        return response.data;
+    },
+
+    updatePrivacySettings: async (settings: {
+        publicProfile: boolean;
+        showActivity: boolean;
+        searchable: boolean;
+    }) => {
+        const response = await apiClient.patch('/auth/settings/privacy/', settings);
+        return response.data;
+    },
+
+    deactivateAccount: async () => {
+        const response = await apiClient.post('/auth/deactivate/');
+        return response.data;
+    },
+
+    deleteAccount: async () => {
+        const response = await apiClient.delete('/auth/delete/');
+        return response.data;
+    },
+
+    requestPasswordReset: async (email: string) => {
+        const response = await apiClient.post('/auth/password/reset/', { email });
+        return response.data;
+    },
+
+    resetPassword: async (token: string, newPassword: string) => {
+        const response = await apiClient.post('/auth/password/reset/confirm/', {
+            token,
+            new_password: newPassword
+        });
+        return response.data;
     }
 };
 
@@ -228,4 +263,15 @@ export async function searchMusic(query: string): Promise<Music[]> {
         console.warn('搜索音樂失敗，返回空結果');
         return [];
     }
-} 
+}
+
+export const community = {
+    getPosts: () => apiClient.get('/posts/'),
+    createPost: (postData: NewPost) => apiClient.post('/posts/', postData),
+    likePost: (postId: number) => apiClient.post(`/posts/${postId}/like/`),
+    deletePost: (postId: number) => apiClient.delete(`/posts/${postId}/`),
+    addComment: (postId: number, content: string) => apiClient.post(`/posts/${postId}/comments/`, { content }),
+    deleteComment: (postId: number, commentId: number) => apiClient.delete(`/posts/${postId}/comments/${commentId}/`)
+};
+
+export default apiClient; 

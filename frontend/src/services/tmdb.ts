@@ -68,21 +68,28 @@ export const getTrendingMovies = async (): Promise<Movie[]> => {
     return response.data.results.map(movie => ({
         id: movie.id,
         title: movie.title,
-        poster_path: `${TMDB_IMAGE_BASE_URL}/w500${movie.poster_path}`,
-        vote_average: movie.vote_average,
-        release_date: movie.release_date
+        overview: movie.overview,
+        posterPath: `${TMDB_IMAGE_BASE_URL}/w500${movie.poster_path}`,
+        releaseDate: movie.release_date,
+        voteAverage: movie.vote_average
     }));
 };
 
-export const searchMovies = async (query: string, page = 1): Promise<TMDBResponse> => {
+export const searchMovies = async (query: string, page = 1): Promise<{ results: Movie[]; total_pages: number }> => {
     const response = await tmdbClient.get<TMDBResponse>('/search/movie', {
-        params: {
-            query,
-            page,
-            language: 'zh-TW'
-        }
+        params: { query, page }
     });
-    return response.data;
+    return {
+        results: response.data.results.map(movie => ({
+            id: movie.id,
+            title: movie.title,
+            overview: movie.overview,
+            posterPath: `${TMDB_IMAGE_BASE_URL}/w500${movie.poster_path}`,
+            releaseDate: movie.release_date,
+            voteAverage: movie.vote_average
+        })),
+        total_pages: response.data.total_pages
+    };
 };
 
 export const getImageUrl = (path: string, size = 'original'): string => {

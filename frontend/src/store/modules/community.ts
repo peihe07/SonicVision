@@ -1,108 +1,76 @@
-import type { Comment, Post } from '@/types/community';
-import axios from 'axios';
+import { community } from '@/services/api';
+import type { NewPost, Post } from '@/types';
 import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
-interface CommunityState {
-    posts: Post[];
-    loading: boolean;
-    error: string | null;
-}
+export const useCommunityStore = defineStore('community', () => {
+    const posts = ref<Post[]>([]);
+    const isLoading = ref(false);
+    const error = ref<string | null>(null);
 
-export const useCommunityStore = defineStore('community', {
-    state: (): CommunityState => ({
-        posts: [],
-        loading: false,
-        error: null,
-    }),
+    const fetchPosts = async () => {
+        isLoading.value = true;
+        error.value = null;
+        try {
+            const response = await community.getPosts();
+            posts.value = response.data;
+        } catch (err) {
+            error.value = '獲取貼文列表失敗';
+            console.error('獲取貼文列表失敗:', err);
+        } finally {
+            isLoading.value = false;
+        }
+    };
 
-    getters: {
-        getPosts: (state: CommunityState): Post[] => state.posts,
-        getPostById: (state: CommunityState) => (id: number): Post | undefined =>
-            state.posts.find((post: Post) => post.id === id),
-        isLoading: (state: CommunityState): boolean => state.loading,
-        getError: (state: CommunityState): string | null => state.error,
-    },
+    const createPost = async (postData: NewPost) => {
+        isLoading.value = true;
+        error.value = null;
+        try {
+            const response = await community.createPost(postData);
+            posts.value.unshift(response.data);
+            return response.data;
+        } catch (err) {
+            error.value = '發布貼文失敗';
+            console.error('發布貼文失敗:', err);
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
+    };
 
-    actions: {
-        async fetchPosts(): Promise<void> {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await axios.get<Post[]>('/api/posts');
-                this.posts = response.data;
-            } catch (error) {
-                this.error = '獲取貼文失敗';
-                console.error('Error fetching posts:', error);
-            } finally {
-                this.loading = false;
+    const likePost = async (postId: number) => {
+        try {
+            await community.likePost(postId);
+            const post = posts.value.find(p => p.id === postId);
+            if (post) {
+                post.isLiked = !post.isLiked;
+                post.likes += post.isLiked ? 1 : -1;
             }
-        },
+        } catch (err) {
+            error.value = '點讚失敗';
+            console.error('點讚失敗:', err);
+            throw err;
+        }
+    };
 
-        async createPost(post: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments'>): Promise<void> {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await axios.post<Post>('/api/posts', post);
-                this.posts.unshift(response.data);
-            } catch (error) {
-                this.error = '創建貼文失敗';
-                console.error('Error creating post:', error);
-                throw error;
-            } finally {
-                this.loading = false;
-            }
-        },
+    const deletePost = async (postId: number) => {
+        try {
+            await community.deletePost(postId);
+            posts.value = posts.value.filter(p => p.id !== postId);
+        } catch (err) {
+            error.value = '刪除貼文失敗';
+            console.error('刪除貼文失敗:', err);
+            throw err;
+        }
+    };
 
-        async likePost(postId: number): Promise<void> {
-            try {
-                await axios.post(`/api/posts/${postId}/like`);
-                const post = this.posts.find((p: Post) => p.id === postId);
-                if (post) {
-                    post.likes++;
-                }
-            } catch (error) {
-                this.error = '點讚失敗';
-                console.error('Error liking post:', error);
-            }
-        },
-
-        async addComment(postId: number, content: string): Promise<void> {
-            try {
-                const response = await axios.post<Comment>(`/api/posts/${postId}/comments`, { content });
-                const post = this.posts.find((p: Post) => p.id === postId);
-                if (post) {
-                    post.comments.push(response.data);
-                }
-            } catch (error) {
-                this.error = '評論失敗';
-                console.error('Error adding comment:', error);
-                throw error;
-            }
-        },
-
-        async deletePost(postId: number): Promise<void> {
-            try {
-                await axios.delete(`/api/posts/${postId}`);
-                this.posts = this.posts.filter((p: Post) => p.id !== postId);
-            } catch (error) {
-                this.error = '刪除貼文失敗';
-                console.error('Error deleting post:', error);
-                throw error;
-            }
-        },
-
-        async deleteComment(postId: number, commentId: number): Promise<void> {
-            try {
-                await axios.delete(`/api/posts/${postId}/comments/${commentId}`);
-                const post = this.posts.find((p: Post) => p.id === postId);
-                if (post) {
-                    post.comments = post.comments.filter((c: Comment) => c.id !== commentId);
-                }
-            } catch (error) {
-                this.error = '刪除評論失敗';
-                console.error('Error deleting comment:', error);
-                throw error;
-            }
-        },
-    },
+    return {
+        posts,
+        isLoading,
+        error,
+        fetchPosts,
+        createPost,
+        likePost,
+        deletePost
+    };
 }); 
