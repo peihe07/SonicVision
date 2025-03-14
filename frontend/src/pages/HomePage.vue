@@ -9,6 +9,69 @@
       </div>
     </section>
 
+    <section class="trending">
+      <h2>熱門推薦</h2>
+      <div class="trending-grid">
+        <div class="trending-music">
+          <h3>熱門音樂</h3>
+          <div class="trending-items">
+            <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else-if="error" class="error-message">
+              {{ error.message }}
+            </div>
+            <div v-else class="trending-content">
+              <MusicCard
+                v-for="track in trendingMusic"
+                :key="track.id"
+                :music="{
+                  id: track.id,
+                  title: track.name,
+                  artist: track.artists[0].name,
+                  coverUrl: track.album.images[0]?.url || '',
+                  rating: 4.5
+                }"
+              >
+                <div class="music-details">
+                  <h4>{{ track.name }}</h4>
+                  <p>{{ track.artists[0].name }}</p>
+                  <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <span>4.5</span>
+                  </div>
+                </div>
+              </MusicCard>
+            </div>
+          </div>
+        </div>
+
+        <div class="trending-movies">
+          <h3>熱門電影</h3>
+          <div class="trending-items">
+            <div v-if="loading" class="placeholder-item">載入中...</div>
+            <div v-else-if="error" class="error-message">
+              {{ error.message }}
+            </div>
+            <div v-else class="trending-content">
+              <MovieCard
+                v-for="movie in trendingMovies"
+                :key="movie.id"
+                :movie="movie"
+              >
+                <div class="movie-details">
+                  <h4>{{ movie.title }}</h4>
+                  <p>{{ movie.release_date?.split('-')[0] }}</p>
+                  <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <span>{{ movie.vote_average?.toFixed(1) }}</span>
+                  </div>
+                </div>
+              </MovieCard>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="features">
       <h2>平台特色</h2>
       <div class="feature-grid">
@@ -31,51 +94,6 @@
           <i class="fas fa-users"></i>
           <h3>社群交流</h3>
           <p>加入討論，認識志同道合的朋友</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="trending">
-      <h2>熱門推薦</h2>
-      <div class="trending-grid">
-        <div class="trending-music">
-          <h3>熱門音樂</h3>
-          <div class="trending-items">
-            <div v-if="loading" class="placeholder-item">載入中...</div>
-            <div v-else-if="error" class="error-message">
-              {{ error.message }}
-            </div>
-            <div v-else class="trending-content">
-              <MusicCard
-                v-for="track in trendingMusic"
-                :key="track.id"
-                :music="{
-                  id: track.id,
-                  title: track.name,
-                  artist: track.artists[0].name,
-                  coverUrl: track.album.images[0]?.url || '',
-                  rating: 4.5
-                }"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="trending-movies">
-          <h3>熱門電影</h3>
-          <div class="trending-items">
-            <div v-if="loading" class="placeholder-item">載入中...</div>
-            <div v-else-if="error" class="error-message">
-              {{ error.message }}
-            </div>
-            <div v-else class="trending-content">
-              <MovieCard
-                v-for="movie in trendingMovies"
-                :key="movie.id"
-                :movie="movie"
-              />
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -128,9 +146,10 @@ export default defineComponent({
         console.log('獲取到的音樂數據:', musicData);
         console.log('獲取到的電影數據:', moviesData);
 
-        // 直接使用 Spotify 和 TMDB 的數據
-        this.trendingMusic = musicData;
-        this.trendingMovies = moviesData;
+        // 先限制電影數量為六部
+        this.trendingMovies = moviesData.slice(0, 6);
+        // 音樂數量與電影數量保持一致
+        this.trendingMusic = musicData.slice(0, this.trendingMovies.length);
 
       } catch (error) {
         console.error('獲取熱門內容時發生錯誤:', error);
@@ -260,40 +279,211 @@ h2 {
 .trending-music, .trending-movies {
   background: #f8f9fa;
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: 16px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-h3 {
+.trending-music:hover, .trending-movies:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trending-music h3, .trending-movies h3 {
   font-size: 1.5rem;
   color: #2c3e50;
   margin-bottom: 1.5rem;
 }
 
+.trending-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .trending-content {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
+  flex: 1;
+}
+
+.trending-movies .trending-content {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  justify-items: center;
+  align-items: center;
+}
+
+.trending-music .trending-content {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  justify-items: center;
+  align-items: center;
+}
+
+.trending-movies .trending-content > * {
+  aspect-ratio: 2/3;
+  width: 100%;
+  max-width: 240px;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.trending-movies .trending-content > *:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.trending-movies .trending-content > *:hover .movie-details {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.trending-music .trending-content > * {
+  aspect-ratio: 1/1;
+  width: 100%;
+  max-width: 220px;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.trending-music .trending-content > *:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.trending-music .trending-content > *:hover .music-details {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.movie-details,
+.music-details {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: all 0.3s ease;
+}
+
+.movie-details h4,
+.music-details h4 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movie-details p,
+.music-details p {
+  font-size: 0.9rem;
+  margin: 0;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rating i {
+  color: #f1c40f;
 }
 
 .placeholder-item {
   text-align: center;
   padding: 2rem;
-  background: #eee;
-  border-radius: 8px;
+  background: #f8f9fa;
+  border-radius: 12px;
   color: #666;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .error-message {
   color: #e74c3c;
   text-align: center;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #fde2e2;
-  border-radius: 8px;
+  border-radius: 12px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 @media (max-width: 768px) {
   .trending-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .trending-music, .trending-movies {
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  
+  .trending-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .trending-movies .trending-content {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+  
+  .trending-music .trending-content {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+  
+  .trending-movies .trending-content > *,
+  .trending-music .trending-content > * {
+    border-radius: 8px;
   }
   
   .hero {
@@ -302,6 +492,21 @@ h3 {
   
   .hero h1 {
     font-size: 2rem;
+  }
+
+  .movie-details,
+  .music-details {
+    padding: 0.75rem;
+  }
+
+  .movie-details h4,
+  .music-details h4 {
+    font-size: 0.9rem;
+  }
+
+  .movie-details p,
+  .music-details p {
+    font-size: 0.8rem;
   }
 }
 </style> 

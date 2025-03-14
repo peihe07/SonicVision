@@ -17,4 +17,5 @@ export interface Post {
     category: string;
     comments: Comment[];
     showComments?: boolean;
+    isExpanded?: boolean;
 } 

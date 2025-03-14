@@ -19,6 +19,17 @@
       <!-- 篩選和排序 -->
       <v-row class="mb-4">
         <v-col cols="12" sm="4">
+          <v-text-field
+            v-model="searchQuery"
+            label="搜尋貼文"
+            prepend-icon="mdi-magnify"
+            outlined
+            dense
+            clearable
+            @input="handleSearch"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="4">
           <v-select
             v-model="selectedCategory"
             :items="categories"
@@ -35,6 +46,23 @@
             outlined
             dense
           ></v-select>
+        </v-col>
+      </v-row>
+
+      <!-- 分類標籤 -->
+      <v-row class="mb-4">
+        <v-col>
+          <v-chip-group>
+            <v-chip
+              v-for="category in categories"
+              :key="category.value"
+              :color="selectedCategory === category.value ? 'primary' : 'default'"
+              @click="selectedCategory = category.value"
+              :outlined="selectedCategory !== category.value"
+            >
+              {{ category.text }}
+            </v-chip>
+          </v-chip-group>
         </v-col>
       </v-row>
 
@@ -66,7 +94,8 @@
           <v-card
             v-for="post in filteredPosts"
             :key="post.id"
-            class="mb-4"
+            class="mb-4 post-card"
+            :class="{ 'post-card--hover': !post.isExpanded }"
           >
             <v-card-title>
               <v-row align="center">
@@ -76,7 +105,16 @@
                   </v-avatar>
                 </v-col>
                 <v-col>
-                  {{ post.title }}
+                  <div class="d-flex align-center">
+                    <span class="text-h6 mr-2">{{ post.title }}</span>
+                    <v-chip
+                      x-small
+                      :color="getCategoryColor(post.category)"
+                      class="ml-2"
+                    >
+                      {{ getCategoryText(post.category) }}
+                    </v-chip>
+                  </div>
                   <div class="text-caption grey--text">
                     由 {{ post.author }} 發布於 {{ formatDate(post.createdAt) }}
                   </div>
@@ -84,13 +122,36 @@
               </v-row>
             </v-card-title>
             <v-card-text>
-              {{ post.content }}
+              <div v-if="post.content.length > 200 && !post.isExpanded">
+                {{ post.content.substring(0, 200) }}...
+                <v-btn
+                  text
+                  small
+                  color="primary"
+                  @click="expandPost(post)"
+                >
+                  閱讀更多
+                </v-btn>
+              </div>
+              <div v-else>
+                {{ post.content }}
+                <v-btn
+                  v-if="post.content.length > 200"
+                  text
+                  small
+                  color="primary"
+                  @click="collapsePost(post)"
+                >
+                  收起
+                </v-btn>
+              </div>
             </v-card-text>
             <v-card-actions>
               <v-btn
                 text
                 color="primary"
                 @click="likePost(post.id)"
+                :class="{ 'liked': post.isLiked }"
               >
                 <v-icon left>mdi-thumb-up</v-icon>
                 {{ post.likes }}
@@ -98,6 +159,7 @@
               <v-btn
                 text
                 @click="showComments(post.id)"
+                :class="{ 'active': post.showComments }"
               >
                 <v-icon left>mdi-comment</v-icon>
                 {{ post.comments.length }} 評論
@@ -108,6 +170,7 @@
                 icon
                 small
                 @click="deletePost(post.id)"
+                class="delete-btn"
               >
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
@@ -207,14 +270,39 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 登入提示對話框 -->
+    <v-dialog
+      v-model="showLoginPrompt"
+      max-width="400"
+    >
+      <v-card>
+        <v-card-title class="text-h5">
+          需要登入
+        </v-card-title>
+        <v-card-text>
+          請先登入您的帳號才能發布貼文。
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            text
+            @click="showLoginPrompt = false"
+          >
+            確定
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script lang="ts">
-import { useAuthStore } from '@/store/modules/auth';
-import { useCommunityStore } from '@/store/modules/community';
-import type { Comment, Post } from '@/types/community';
 import { computed, defineComponent, onMounted, ref } from 'vue';
+import { useAuthStore } from '../store/modules/auth';
+import { useCommunityStore } from '../store/modules/community';
+import type { Comment, Post } from '../types/community';
 
 export default defineComponent({
   name: 'CommunityPage',
@@ -224,9 +312,11 @@ export default defineComponent({
     const authStore = useAuthStore();
     const selectedCategory = ref('all');
     const sortBy = ref('newest');
+    const searchQuery = ref('');
     const newPostDialog = ref(false);
     const validPost = ref(false);
     const newComments = ref<Record<number, string>>({});
+    const showLoginPrompt = ref(false);
 
     const categories = [
       { text: '全部', value: 'all' },
@@ -245,11 +335,23 @@ export default defineComponent({
     const newPost = ref({
       title: '',
       category: '',
-      content: ''
+      content: '',
+      author: authStore.currentUser?.username || '',
+      authorAvatar: authStore.currentUser?.avatar || '/avatars/default.jpg'
     });
 
     const filteredPosts = computed(() => {
       let posts = store.getPosts;
+      
+      // 搜尋篩選
+      if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        posts = posts.filter(post => 
+          post.title.toLowerCase().includes(query) ||
+          post.content.toLowerCase().includes(query) ||
+          post.author.toLowerCase().includes(query)
+        );
+      }
       
       // 分類篩選
       if (selectedCategory.value !== 'all') {
@@ -274,6 +376,10 @@ export default defineComponent({
     };
 
     const openNewPostDialog = () => {
+      if (!authStore.isAuthenticated) {
+        showLoginPrompt.value = true;
+        return;
+      }
       newPostDialog.value = true;
     };
 
@@ -281,12 +387,21 @@ export default defineComponent({
       if (!validPost.value) return;
 
       try {
-        await store.createPost(newPost.value);
+        const postData = {
+          title: newPost.value.title,
+          category: newPost.value.category,
+          content: newPost.value.content,
+          author: authStore.currentUser?.username || '',
+          authorAvatar: authStore.currentUser?.avatar || '/avatars/default.jpg'
+        };
+        await store.createPost(postData);
         newPostDialog.value = false;
         newPost.value = {
           title: '',
           category: '',
-          content: ''
+          content: '',
+          author: authStore.currentUser?.username || '',
+          authorAvatar: authStore.currentUser?.avatar || '/avatars/default.jpg'
         };
       } catch (error) {
         console.error('Failed to create post:', error);
@@ -344,6 +459,41 @@ export default defineComponent({
       return comment.author === authStore.currentUser?.username;
     };
 
+    const handleSearch = () => {
+      // 可以添加防抖處理
+      if (searchQuery.value) {
+        store.fetchPosts();
+      }
+    };
+
+    const getCategoryColor = (category: string): string => {
+      switch (category) {
+        case 'movies':
+          return 'red';
+        case 'music':
+          return 'blue';
+        case 'experience':
+          return 'green';
+        case 'help':
+          return 'orange';
+        default:
+          return 'grey';
+      }
+    };
+
+    const getCategoryText = (category: string): string => {
+      const found = categories.find(c => c.value === category);
+      return found ? found.text : '其他';
+    };
+
+    const expandPost = (post: Post) => {
+      post.isExpanded = true;
+    };
+
+    const collapsePost = (post: Post) => {
+      post.isExpanded = false;
+    };
+
     onMounted(async () => {
       await store.fetchPosts();
     });
@@ -352,6 +502,7 @@ export default defineComponent({
       store,
       selectedCategory,
       sortBy,
+      searchQuery,
       categories,
       sortOptions,
       newPostDialog,
@@ -368,7 +519,13 @@ export default defineComponent({
       deletePost,
       deleteComment,
       isCurrentUserPost,
-      isCurrentUserComment
+      isCurrentUserComment,
+      handleSearch,
+      getCategoryColor,
+      getCategoryText,
+      expandPost,
+      collapsePost,
+      showLoginPrompt,
     };
   }
 });
@@ -377,5 +534,58 @@ export default defineComponent({
 <style scoped>
 .community-page {
   padding: 20px 0;
+}
+
+.v-chip-group {
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+.v-chip {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.v-chip:hover {
+  transform: translateY(-2px);
+}
+
+.post-card {
+  transition: all 0.3s ease;
+}
+
+.post-card--hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.liked {
+  color: #e91e63;
+}
+
+.active {
+  color: #2196f3;
+}
+
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.post-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.v-expand-transition-enter-active,
+.v-expand-transition-leave-active {
+  transition: all 0.3s ease;
+}
+
+.v-expand-transition-enter-from,
+.v-expand-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

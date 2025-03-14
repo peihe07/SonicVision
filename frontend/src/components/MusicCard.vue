@@ -7,6 +7,14 @@
                 <span class="artist">🎤 {{ music.artist }}</span>
                 <span class="rating">⭐ {{ music.rating.toFixed(1) }}</span>
             </div>
+            <div class="hover-details">
+                <h4>{{ music.title }}</h4>
+                <p>{{ music.artist }}</p>
+                <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <span>{{ music.rating.toFixed(1) }}</span>
+                </div>
+            </div>
             <div class="view-details">
                 點擊查看詳情
             </div>
@@ -52,6 +60,7 @@ export default defineComponent({
     overflow: hidden;
     transition: transform 0.3s ease;
     cursor: pointer;
+    position: relative;
 }
 
 .music-card:hover {
@@ -66,6 +75,7 @@ export default defineComponent({
 
 .music-info {
     padding: 1rem;
+    position: relative;
 }
 
 .music-info h3 {
@@ -83,6 +93,47 @@ export default defineComponent({
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
     color: #666;
+}
+
+.hover-details {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 1;
+}
+
+.music-card:hover .hover-details {
+    transform: translateY(0);
+}
+
+.hover-details h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hover-details p {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.hover-details .rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hover-details .rating i {
+    color: #f1c40f;
 }
 
 .artist {

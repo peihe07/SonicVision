@@ -1,5 +1,5 @@
 <template>
-    <div class="movie-card">
+    <div class="movie-card" @click="navigateToDetail">
         <img :src="posterUrl" :alt="movie.title" class="movie-poster">
         <div class="movie-info">
             <h3>{{ movie.title }}</h3>
@@ -7,9 +7,17 @@
                 <span class="rating">⭐ {{ rating.toFixed(1) }}</span>
                 <span class="release-date">📅 {{ formattedDate }}</span>
             </div>
-            <router-link :to="{ name: 'movie-detail', params: { id: movie.id }}" class="view-details">
-                查看詳情
-            </router-link>
+            <div class="hover-details">
+                <h4>{{ movie.title }}</h4>
+                <p>{{ movie.release_date?.split('-')[0] }}</p>
+                <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <span>{{ movie.vote_average?.toFixed(1) }}</span>
+                </div>
+            </div>
+            <div class="view-details">
+                點擊查看詳情
+            </div>
         </div>
     </div>
 </template>
@@ -18,6 +26,7 @@
 import { getImageUrl } from '@/services/tmdb';
 import type { Movie } from '@/types';
 import { defineComponent, PropType } from 'vue';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
     name: 'MovieCard',
@@ -26,6 +35,21 @@ export default defineComponent({
             type: Object as PropType<Movie>,
             required: true
         }
+    },
+    setup(props) {
+        const router = useRouter();
+
+        const navigateToDetail = () => {
+            router.push({
+                name: 'movie-detail',
+                params: { id: props.movie.id.toString() }
+            });
+        };
+
+        return {
+            navigateToDetail,
+            getImageUrl
+        };
     },
     computed: {
         posterUrl(): string {
@@ -53,6 +77,8 @@ export default defineComponent({
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     transition: transform 0.3s ease;
+    position: relative;
+    cursor: pointer;
 }
 
 .movie-card:hover {
@@ -67,12 +93,16 @@ export default defineComponent({
 
 .movie-info {
     padding: 1rem;
+    position: relative;
 }
 
 .movie-info h3 {
     margin: 0 0 0.5rem;
     font-size: 1.1rem;
     color: #2c3e50;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .movie-details {
@@ -83,18 +113,57 @@ export default defineComponent({
     color: #666;
 }
 
+.hover-details {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 1;
+}
+
+.movie-card:hover .hover-details {
+    transform: translateY(0);
+}
+
+.hover-details h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hover-details p {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.hover-details .rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hover-details .rating i {
+    color: #f1c40f;
+}
+
 .view-details {
-    display: block;
+    font-size: 0.8rem;
+    color: #3498db;
     text-align: center;
     padding: 0.5rem;
-    background: #42b883;
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
+    border-top: 1px solid #eee;
+    margin-top: 0.5rem;
 }
 
 .view-details:hover {
-    background: #3aa876;
+    background-color: #f8f9fa;
 }
 </style> 
