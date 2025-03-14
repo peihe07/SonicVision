@@ -11,9 +11,46 @@
         <router-link to="/community" class="nav-link">社群</router-link>
         <router-link to="/about" class="nav-link">關於</router-link>
       </div>
-      <div class="nav-auth">
+      <div class="nav-auth" v-if="!isAuthenticated">
         <router-link to="/login" class="nav-link">登入</router-link>
         <router-link to="/register" class="btn btn-primary">註冊</router-link>
+      </div>
+      <div v-else class="nav-user">
+        <notification-center class="mr-4"></notification-center>
+        <v-menu offset-y>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              icon
+              v-bind="attrs"
+              v-on="on"
+            >
+              <v-avatar size="32">
+                <v-img
+                  :src="currentUser?.avatar || '/avatars/default.jpg'"
+                  alt="用戶頭像"
+                ></v-img>
+              </v-avatar>
+            </v-btn>
+          </template>
+          <v-list>
+            <v-list-item :to="`/user/${currentUser?.username}`">
+              <v-list-item-icon>
+                <v-icon>mdi-account</v-icon>
+              </v-list-item-icon>
+              <v-list-item-content>
+                <v-list-item-title>個人資料</v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+            <v-list-item @click="logout">
+              <v-list-item-icon>
+                <v-icon>mdi-logout</v-icon>
+              </v-list-item-icon>
+              <v-list-item-content>
+                <v-list-item-title>登出</v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </div>
     </nav>
     <main class="main-content">
@@ -43,10 +80,39 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'App'
-}
+<script lang="ts">
+import NotificationCenter from '@/components/NotificationCenter.vue';
+import { useAuthStore } from '@/store/modules/auth';
+import { computed, defineComponent } from 'vue';
+
+export default defineComponent({
+  name: 'App',
+
+  components: {
+    NotificationCenter,
+  },
+
+  setup() {
+    const authStore = useAuthStore();
+
+    const isAuthenticated = computed(() => authStore.isAuthenticated);
+    const currentUser = computed(() => authStore.getCurrentUser);
+
+    const logout = async () => {
+      try {
+        await authStore.logout();
+      } catch (error) {
+        console.error('Failed to logout:', error);
+      }
+    };
+
+    return {
+      isAuthenticated,
+      currentUser,
+      logout,
+    };
+  },
+});
 </script>
 
 <style>
@@ -80,7 +146,7 @@ export default {
   align-items: center;
 }
 
-.nav-auth {
+.nav-auth, .nav-user {
   display: flex;
   gap: 1rem;
   align-items: center;
@@ -96,6 +162,22 @@ export default {
 
 .nav-link:hover {
   background-color: #34495e;
+}
+
+.btn {
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background-color: #42b983;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3aa876;
 }
 
 .main-content {
@@ -148,5 +230,9 @@ export default {
   padding-top: 2rem;
   margin-top: 2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mr-4 {
+  margin-right: 1rem;
 }
 </style>
