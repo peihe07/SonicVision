@@ -3,9 +3,8 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import status, viewsets, permissions
+from rest_framework.decorators import api_view, action, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -18,6 +17,11 @@ import logging
 import base64
 import requests
 import time
+from .models import Post, Comment
+from .serializers import PostSerializer, CommentSerializer
+from rest_framework import serializers
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -166,7 +170,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # ✅ 4. 用戶資料 API
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def user_profile(request):
     return Response({
         "id": request.user.id,
@@ -191,7 +195,7 @@ class UserLibraryView(View):
 
 # ✅ 7. 測試受保護 API
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def protected_view(request):
     return Response({"username": request.user.username})
 
@@ -354,3 +358,79 @@ def get_preview_url(request, track_id):
             {"error": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Post.objects.all()
+        category = self.request.query_params.get('category', None)
+        if category and category != '全部':
+            queryset = queryset.filter(category=category)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        try:
+            post = self.get_object()
+            if post.likes.filter(id=request.user.id).exists():
+                post.likes.remove(request.user)
+                return Response({'status': 'unliked'})
+            else:
+                post.likes.add(request.user)
+                return Response({'status': 'liked'})
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        try:
+            return Comment.objects.filter(post_id=self.kwargs['post_pk'])
+        except Exception as e:
+            return Comment.objects.none()
+
+    def perform_create(self, serializer):
+        try:
+            post = Post.objects.get(pk=self.kwargs['post_pk'])
+            serializer.save(author=self.request.user, post=post)
+        except Post.DoesNotExist:
+            raise serializers.ValidationError({'post': '貼文不存在'})
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+
+class Custom404View(View):
+    def dispatch(self, request, *args, **kwargs):
+        return JsonResponse({
+            'error': '找不到請求的資源',
+            'status': 404
+        }, status=404)
+
+class Custom500View(View):
+    def dispatch(self, request, *args, **kwargs):
+        return JsonResponse({
+            'error': '伺服器內部錯誤',
+            'status': 500
+        }, status=500)
+
+def custom_404(request, exception=None):
+    return Custom404View.as_view()(request)
+
+def custom_500(request):
+    return Custom500View.as_view()(request)
+
+@api_view(['GET'])
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    return Response({'detail': 'CSRF cookie set'})

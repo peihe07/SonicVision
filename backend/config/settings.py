@@ -28,7 +28,10 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 允許 Vue.js 向 Django 發送請求
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
+    "http://localhost:8080",  # Vue 開發服務器
+    "http://127.0.0.1:8080",
+    "http://localhost:5173",  # Vite 開發服務器
+    "http://127.0.0.1:5173",
 ]
 
 # 允許跨域發送 Cookie
@@ -79,23 +82,21 @@ SIMPLE_JWT = {
 
 # CSRF 設置
 CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:8080",
     "http://localhost:8080",
-    "http://127.0.0.1:8083",
-    "http://localhost:8083",
+    "http://127.0.0.1:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
-CSRF_COOKIE_SAMESITE = None
-CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = False  # 開發環境設為 False，生產環境應設為 True
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'X-CSRFToken'
 
 # Session 設置
-SESSION_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = False
 
 # Application definition

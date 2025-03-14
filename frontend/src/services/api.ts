@@ -1,6 +1,6 @@
 import type { ApiResponse, Movie, Music, NewPost } from '@/types';
 import type { LoginCredentials, NotificationSettings, PasswordUpdateData, PrivacySettings, ProfileUpdateData, RegisterData, User } from '@/types/api';
-import type { InternalAxiosRequestConfig } from 'axios';
+import type { AxiosError } from 'axios';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
@@ -17,39 +17,66 @@ const apiClient = axios.create({
 
 // 獲取 CSRF Token
 const getCsrfToken = () => {
-    return document.cookie.split('; ')
-        .find(row => row.startsWith('csrftoken='))
-        ?.split('=')[1];
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 };
 
-// 請求攔截器：添加認證信息
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    // 添加 CSRF Token
-    const csrfToken = getCsrfToken();
-    if (csrfToken && config.headers) {
-        config.headers['X-CSRFToken'] = csrfToken;
+// 請求攔截器
+apiClient.interceptors.request.use(
+    async (config) => {
+        // 對於非 GET 請求，先獲取 CSRF token
+        if (config.method !== 'get') {
+            try {
+                // 先發送一個 GET 請求來獲取 CSRF token
+                await axios.get(`${API_BASE_URL}/csrf-token/`, {
+                    withCredentials: true
+                });
+            } catch (error) {
+                console.warn('獲取 CSRF token 失敗:', error);
+            }
+        }
+
+        // 添加 CSRF Token
+        const token = getCsrfToken();
+        if (token) {
+            config.headers['X-CSRFToken'] = token;
+        }
+
+        // 添加 JWT Token
+        const jwtToken = localStorage.getItem('token');
+        if (jwtToken) {
+            config.headers['Authorization'] = `Bearer ${jwtToken}`;
+        }
+
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
+);
 
-    // 添加 JWT Token（如果存在）
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return config;
-}, error => {
-    console.error('請求攔截器錯誤:', error);
-    return Promise.reject(error);
-});
-
-// 響應攔截器：處理認證錯誤
+// 響應攔截器
 apiClient.interceptors.response.use(
-    response => response,
-    async error => {
-        if (error.response?.status === 401) {
-            // 清除無效的 token
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+    (response) => response,
+    async (error) => {
+        if (error.response?.status === 403) {
+            console.error('CSRF 驗證失敗，請重新整理頁面');
+            // 清除本地存儲的 token
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            // 重新導向到登入頁面
+            window.location.href = '/login';
         }
         return Promise.reject(error);
     }
@@ -126,10 +153,55 @@ export const getTrendingMovies = async (): Promise<ApiResponse<Movie[]>> => {
 
 export const authAPI = {
     login: async (credentials: LoginCredentials) => {
-        return apiClient.post('/token/', credentials);
+        try {
+            const response = await apiClient.post('/token/', credentials);
+            // 保存 token
+            if (response.data.access) {
+                localStorage.setItem('token', response.data.access);
+            }
+            if (response.data.refresh) {
+                localStorage.setItem('refreshToken', response.data.refresh);
+            }
+            return response;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('用戶名或密碼錯誤');
+            }
+            throw error;
+        }
+    },
+    googleLogin: async (accessToken: string) => {
+        try {
+            const response = await apiClient.post('/auth/google/', { access_token: accessToken });
+            // 保存 token
+            if (response.data.token) {
+                localStorage.setItem('token', response.data.token);
+            }
+            if (response.data.refresh) {
+                localStorage.setItem('refreshToken', response.data.refresh);
+            }
+            return response;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 400) {
+                throw new Error('Google 登入失敗：無效的 token');
+            }
+            throw error;
+        }
     },
     register: async (userData: RegisterData) => {
-        return apiClient.post('/auth/register/', userData);
+        try {
+            const response = await apiClient.post('/auth/register/', userData);
+            // 保存 token
+            if (response.data.token) {
+                localStorage.setItem('token', response.data.token);
+            }
+            return response;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 400) {
+                throw new Error('註冊失敗：用戶名已存在');
+            }
+            throw error;
+        }
     },
     refreshToken: async (refresh: string) => {
         return apiClient.post('/token/refresh/', { refresh });
@@ -186,19 +258,57 @@ export const authAPI = {
 export const playlists = {
     getAll: async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/playlists`);
+            const response = await apiClient.get('/playlists/');
             return response.data;
-        } catch (error) {
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以查看歌單');
+            }
             console.error('獲取播放清單失敗:', error);
             throw error;
         }
     },
-    create: async (name: string) => {
+    create: async (formData: FormData) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/playlists`, { name });
+            const response = await apiClient.post('/playlists/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
             return response.data;
-        } catch (error) {
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以創建歌單');
+            }
             console.error('創建播放清單失敗:', error);
+            throw error;
+        }
+    },
+    update: async (id: number, formData: FormData) => {
+        try {
+            const response = await apiClient.put(`/playlists/${id}/`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return response.data;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以更新歌單');
+            }
+            console.error('更新播放清單失敗:', error);
+            throw error;
+        }
+    },
+    delete: async (id: number) => {
+        try {
+            const response = await apiClient.delete(`/playlists/${id}/`);
+            return response.data;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以刪除歌單');
+            }
+            console.error('刪除播放清單失敗:', error);
             throw error;
         }
     }
@@ -207,19 +317,57 @@ export const playlists = {
 export const watchlists = {
     getAll: async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/watchlists`);
+            const response = await apiClient.get('/watchlists/');
             return response.data;
-        } catch (error) {
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以查看片單');
+            }
             console.error('獲取觀看清單失敗:', error);
             throw error;
         }
     },
-    create: async (name: string) => {
+    create: async (formData: FormData) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/watchlists`, { name });
+            const response = await apiClient.post('/watchlists/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
             return response.data;
-        } catch (error) {
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以創建片單');
+            }
             console.error('創建觀看清單失敗:', error);
+            throw error;
+        }
+    },
+    update: async (id: number, formData: FormData) => {
+        try {
+            const response = await apiClient.put(`/watchlists/${id}/`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return response.data;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以更新片單');
+            }
+            console.error('更新觀看清單失敗:', error);
+            throw error;
+        }
+    },
+    delete: async (id: number) => {
+        try {
+            const response = await apiClient.delete(`/watchlists/${id}/`);
+            return response.data;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 401) {
+                throw new Error('請先登入以刪除片單');
+            }
+            console.error('刪除觀看清單失敗:', error);
             throw error;
         }
     }
@@ -246,12 +394,75 @@ export async function searchMusic(query: string): Promise<Music[]> {
 }
 
 export const community = {
-    getPosts: () => apiClient.get('/posts/'),
-    createPost: (postData: NewPost) => apiClient.post('/posts/', postData),
-    likePost: (postId: number) => apiClient.post(`/posts/${postId}/like/`),
-    deletePost: (postId: number) => apiClient.delete(`/posts/${postId}/`),
-    addComment: (postId: number, content: string) => apiClient.post(`/posts/${postId}/comments/`, { content }),
-    deleteComment: (postId: number, commentId: number) => apiClient.delete(`/posts/${postId}/comments/${commentId}/`)
+    getPosts: async () => {
+        try {
+            const response = await apiClient.get('/posts/');
+            return response.data;
+        } catch (error) {
+            console.error('獲取貼文列表失敗:', error);
+            throw error;
+        }
+    },
+    createPost: async (postData: NewPost) => {
+        try {
+            const response = await apiClient.post('/posts/', postData);
+            return response.data;
+        } catch (error: unknown) {
+            console.error('發布貼文失敗:', error);
+            if ((error as AxiosError)?.response?.status === 403) {
+                throw new Error('您沒有權限發布貼文，請先登入');
+            }
+            throw error;
+        }
+    },
+    likePost: async (postId: number) => {
+        try {
+            const response = await apiClient.post(`/posts/${postId}/like/`);
+            return response.data;
+        } catch (error: unknown) {
+            console.error('點讚失敗:', error);
+            if ((error as AxiosError)?.response?.status === 403) {
+                throw new Error('您沒有權限點讚，請先登入');
+            }
+            throw error;
+        }
+    },
+    deletePost: async (postId: number) => {
+        try {
+            const response = await apiClient.delete(`/posts/${postId}/`);
+            return response.data;
+        } catch (error: unknown) {
+            console.error('刪除貼文失敗:', error);
+            if ((error as AxiosError)?.response?.status === 403) {
+                throw new Error('您沒有權限刪除貼文');
+            }
+            throw error;
+        }
+    },
+    addComment: async (postId: number, content: string) => {
+        try {
+            const response = await apiClient.post(`/posts/${postId}/comments/`, { content });
+            return response.data;
+        } catch (error: unknown) {
+            console.error('發表評論失敗:', error);
+            if ((error as AxiosError)?.response?.status === 403) {
+                throw new Error('您沒有權限發表評論，請先登入');
+            }
+            throw error;
+        }
+    },
+    deleteComment: async (postId: number, commentId: number) => {
+        try {
+            const response = await apiClient.delete(`/posts/${postId}/comments/${commentId}/`);
+            return response.data;
+        } catch (error: unknown) {
+            console.error('刪除評論失敗:', error);
+            if ((error as AxiosError)?.response?.status === 403) {
+                throw new Error('您沒有權限刪除評論');
+            }
+            throw error;
+        }
+    }
 };
 
 export default apiClient; 
