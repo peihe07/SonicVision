@@ -4,7 +4,7 @@
       <h1>歡迎來到 SonicVision</h1>
       <p class="subtitle">發現精彩的音樂和電影世界</p>
       <div class="hero-buttons">
-        <router-link to="/search" class="btn btn-primary">開始探索</router-link>
+        <router-link to="/discover" class="btn btn-primary">開始探索</router-link>
         <router-link to="/about" class="btn btn-outline">了解更多</router-link>
       </div>
     </section>

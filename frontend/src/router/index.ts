@@ -1,5 +1,8 @@
+import DiscoverPage from '@/pages/DiscoverPage.vue';
 import HomePage from '@/pages/HomePage.vue';
-import type { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
+import MovieDetailPage from '@/pages/MovieDetailPage.vue';
+import MusicDetailPage from '@/pages/MusicDetailPage.vue';
+import type { RouteRecordRaw } from 'vue-router';
 import { createRouter, createWebHistory } from 'vue-router';
 
 const routes: Array<RouteRecordRaw> = [
@@ -11,7 +14,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/discover',
         name: 'discover',
-        component: () => import('@/pages/DiscoverPage.vue')
+        component: DiscoverPage
     },
     {
         path: '/register',
@@ -46,17 +49,12 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/movie/:id',
         name: 'movie-detail',
-        component: () => import('@/pages/MovieDetailPage.vue')
+        component: MovieDetailPage
     },
     {
         path: '/music/:id',
         name: 'music-detail',
-        component: HomePage,
-        beforeEnter: (to: RouteLocationNormalized) => {
-            const spotifyUrl = `https://open.spotify.com/track/${to.params.id}`;
-            window.open(spotifyUrl, '_blank');
-            return '/';
-        }
+        component: MusicDetailPage
     }
 ];
 

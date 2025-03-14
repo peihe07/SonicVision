@@ -1,321 +1,379 @@
 <template>
   <div class="discover">
-    <div class="discover-header">
-      <div class="search-section">
-        <div class="search-input-group">
+    <section class="search-section">
+      <h1>探索音樂與電影</h1>
+      <div class="search-container">
+        <div class="search-input">
           <input 
-            type="text" 
             v-model="searchQuery" 
+            type="text" 
+            :placeholder="activeType === 'music' ? '搜索音樂...' : '搜索電影...'"
             @keyup.enter="handleSearch"
-            :placeholder="searchPlaceholder" 
-            class="search-input"
           >
-          <button class="search-btn" @click="handleSearch">
+          <button @click="handleSearch" class="search-button">
             <i class="fas fa-search"></i>
-            搜尋
           </button>
         </div>
-        <div class="filter-buttons">
+        <div class="search-type">
           <button 
-            :class="['filter-btn', { active: activeType === 'music' }]"
+            :class="['type-button', { active: activeType === 'music' }]"
             @click="setActiveType('music')"
-          >音樂</button>
+          >
+            音樂
+          </button>
           <button 
-            :class="['filter-btn', { active: activeType === 'movie' }]"
+            :class="['type-button', { active: activeType === 'movie' }]"
             @click="setActiveType('movie')"
-          >電影</button>
+          >
+            電影
+          </button>
         </div>
       </div>
+    </section>
+
+    <div v-if="loading" class="loading">
+      <div class="spinner"></div>
+      <p>搜索中...</p>
     </div>
 
-    <div class="content-section">
-      <div class="sidebar">
-        <div class="filter-section">
-          <h3>分類篩選</h3>
-          <div v-if="activeType === 'music'" class="filter-group">
-            <h4>音樂類型</h4>
-            <div v-for="genre in musicGenres" :key="genre.id" class="filter-item">
-              <input 
-                type="checkbox" 
-                :id="genre.id" 
-                v-model="selectedMusicGenres"
-                :value="genre.id"
-              >
-              <label :for="genre.id">{{ genre.name }}</label>
-            </div>
-          </div>
-          <div v-if="activeType === 'movie'" class="filter-group">
-            <h4>電影類型</h4>
-            <div v-for="genre in movieGenres" :key="genre.id" class="filter-item">
-              <input 
-                type="checkbox" 
-                :id="genre.id" 
-                v-model="selectedMovieGenres"
-                :value="genre.id"
-              >
-              <label :for="genre.id">{{ genre.name }}</label>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div v-else-if="error" class="error-message">
+      {{ error }}
+    </div>
 
-      <div class="main-content">
-        <div v-if="activeType === 'music'">
-          <SpotifySearch :search-query="currentSearchQuery" :active-type="activeType" />
+    <div v-else>
+      <section v-if="activeType === 'music'" class="results-section">
+        <div v-if="musicResults.length > 0" class="results-grid">
+          <MusicCard
+            v-for="track in musicResults"
+            :key="track.id"
+            :music="{
+              id: track.id,
+              title: track.name,
+              artist: track.artists[0].name,
+              coverUrl: track.album.images[0]?.url || '',
+              rating: 4.5
+            }"
+          />
         </div>
-        <div v-if="activeType === 'movie'">
-          <MovieSearch :search-query="currentSearchQuery" :active-type="activeType" />
+        <div v-else-if="hasSearched" class="no-results">
+          找不到相關音樂
         </div>
-      </div>
+      </section>
+
+      <section v-else class="results-section">
+        <div v-if="movieResults.length > 0" class="results-grid">
+          <MovieCard
+            v-for="movie in movieResults"
+            :key="movie.id"
+            :movie="movie"
+          />
+        </div>
+        <div v-else-if="hasSearched" class="no-results">
+          找不到相關電影
+        </div>
+      </section>
+    </div>
+
+    <div v-if="hasMore && !loading" class="load-more">
+      <button @click="loadMore" class="load-more-button">
+        載入更多
+      </button>
     </div>
   </div>
 </template>
 
-<script>
-import { computed, onMounted, ref } from 'vue';
-import MovieSearch from '../components/MovieSearch.vue';
-import SpotifySearch from '../components/SpotifySearch.vue';
-import { getMovieGenres } from '../services/tmdb';
+<script lang="ts">
+import MovieCard from '@/components/MovieCard.vue';
+import MusicCard from '@/components/MusicCard.vue';
+import type { SpotifyTrack } from '@/services/spotify';
+import { searchSpotify } from '@/services/spotify';
+import { searchMovies } from '@/services/tmdb';
+import type { Movie } from '@/types';
+import { defineComponent, ref, watch } from 'vue';
 
-export default {
+export default defineComponent({
   name: 'DiscoverPage',
   components: {
-    SpotifySearch,
-    MovieSearch
+    MusicCard,
+    MovieCard
   },
   setup() {
     const searchQuery = ref('');
-    const currentSearchQuery = ref('');
-    const activeType = ref('music');  // 預設顯示音樂搜尋
+    const activeType = ref<'music' | 'movie'>('music');
     const loading = ref(false);
-    const error = ref(null);
-    const selectedMusicGenres = ref([]);
-    const selectedMovieGenres = ref([]);
-    const movieGenres = ref([]);
+    const error = ref<string | null>(null);
+    const currentPage = ref(1);
+    const hasMore = ref(false);
+    const hasSearched = ref(false);
+    const musicResults = ref<SpotifyTrack[]>([]);
+    const movieResults = ref<Movie[]>([]);
 
-    const musicGenres = [
-      { id: 'pop', name: '流行' },
-      { id: 'rock', name: '搖滾' },
-      { id: 'jazz', name: '爵士' },
-      { id: 'classical', name: '古典' }
-    ];
+    const handleSearch = async () => {
+      if (!searchQuery.value.trim()) return;
 
-    const searchPlaceholder = computed(() => {
-      return activeType.value === 'music' ? '搜尋音樂...' : '搜尋電影...';
-    });
-
-    const handleSearch = () => {
-      error.value = null;
-      currentSearchQuery.value = searchQuery.value;
-    };
-
-    const setActiveType = (type) => {
-      activeType.value = type;
-      searchQuery.value = '';
-      currentSearchQuery.value = '';
-      error.value = null;
-    };
-
-    // 載入電影類型
-    const fetchMovieGenres = async () => {
       try {
-        const response = await getMovieGenres();
-        movieGenres.value = response;
+        loading.value = true;
+        error.value = null;
+        currentPage.value = 1;
+        hasSearched.value = true;
+
+        if (activeType.value === 'music') {
+          const result = await searchSpotify(searchQuery.value.trim(), 1);
+          musicResults.value = result.items;
+          hasMore.value = result.hasMore;
+        } else {
+          const result = await searchMovies(searchQuery.value.trim(), 1);
+          movieResults.value = result.results;
+          hasMore.value = currentPage.value < result.total_pages;
+        }
       } catch (err) {
-        console.error('Error fetching movie genres:', err);
+        console.error('搜索失敗:', err);
+        error.value = '搜索時發生錯誤，請稍後再試';
+      } finally {
+        loading.value = false;
       }
     };
 
-    onMounted(() => {
-      fetchMovieGenres();
+    const loadMore = async () => {
+      if (loading.value) return;
+
+      try {
+        loading.value = true;
+        const nextPage = currentPage.value + 1;
+
+        if (activeType.value === 'music') {
+          const result = await searchSpotify(searchQuery.value.trim(), nextPage);
+          musicResults.value = [...musicResults.value, ...result.items];
+          hasMore.value = result.hasMore;
+        } else {
+          const result = await searchMovies(searchQuery.value.trim(), nextPage);
+          movieResults.value = [...movieResults.value, ...result.results];
+          hasMore.value = nextPage < result.total_pages;
+        }
+
+        currentPage.value = nextPage;
+      } catch (err) {
+        console.error('載入更多結果失敗:', err);
+        error.value = '載入更多結果時發生錯誤';
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const setActiveType = (type: 'music' | 'movie') => {
+      if (activeType.value !== type) {
+        activeType.value = type;
+        musicResults.value = [];
+        movieResults.value = [];
+        hasMore.value = false;
+        hasSearched.value = false;
+        currentPage.value = 1;
+        error.value = null;
+        if (searchQuery.value.trim()) {
+          handleSearch();
+        }
+      }
+    };
+
+    watch(searchQuery, () => {
+      if (!searchQuery.value.trim()) {
+        musicResults.value = [];
+        movieResults.value = [];
+        hasMore.value = false;
+        hasSearched.value = false;
+        error.value = null;
+      }
     });
 
     return {
       searchQuery,
-      currentSearchQuery,
       activeType,
       loading,
       error,
-      selectedMusicGenres,
-      selectedMovieGenres,
-      musicGenres,
-      movieGenres,
-      searchPlaceholder,
+      hasMore,
+      hasSearched,
+      musicResults,
+      movieResults,
       handleSearch,
+      loadMore,
       setActiveType
     };
   }
-};
+});
 </script>
 
 <style scoped>
 .discover {
-  margin: -2rem;
-  background-color: #f8f9fa;
-  min-height: calc(100vh - 64px);
-}
-
-.discover-header {
-  background: white;
   padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 100vh;
+  background-color: #f8f9fa;
 }
 
 .search-section {
-  max-width: 800px;
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+h1 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+}
+
+.search-container {
+  max-width: 600px;
   margin: 0 auto;
 }
 
-.search-input-group {
+.search-input {
   display: flex;
   gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.search-input {
+.search-input input {
   flex: 1;
-  padding: 0.8rem 1rem;
+  padding: 1rem;
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 25px;
   font-size: 1rem;
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
-.search-input:focus {
+.search-input input:focus {
   outline: none;
   border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
-.search-btn {
-  padding: 0.8rem 1.5rem;
+.search-button {
+  padding: 0 1.5rem;
+  border: none;
+  border-radius: 25px;
   background: #3498db;
   color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.search-btn:hover {
-  background: #2980b9;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.filter-btn {
-  padding: 0.5rem 2rem;
-  border: 2px solid #3498db;
-  background: transparent;
-  color: #3498db;
-  border-radius: 25px;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-weight: 500;
 }
 
-.filter-btn:hover {
-  background: rgba(52, 152, 219, 0.1);
+.search-button:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
 }
 
-.filter-btn.active {
+.search-type {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.type-button {
+  padding: 0.5rem 2rem;
+  border: 2px solid #3498db;
+  border-radius: 20px;
+  background: transparent;
+  color: #3498db;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.type-button.active {
   background: #3498db;
   color: white;
 }
 
-.content-section {
-  display: flex;
+.type-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.results-section {
+  margin-top: 2rem;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 2rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 1s linear infinite;
+}
+
+.error-message {
+  text-align: center;
+  color: #e74c3c;
   padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.sidebar {
-  width: 250px;
-  flex-shrink: 0;
-}
-
-.filter-section {
-  background: white;
-  padding: 1.5rem;
+  background: #fde2e2;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
 }
 
-.filter-section h3 {
-  margin: 0 0 1rem 0;
-  color: #2c3e50;
-  font-size: 1.2rem;
-}
-
-.filter-group {
-  margin-bottom: 1.5rem;
-}
-
-.filter-group h4 {
-  margin: 0 0 0.8rem 0;
+.no-results {
+  text-align: center;
+  padding: 3rem;
   color: #666;
-  font-size: 1rem;
+  font-style: italic;
 }
 
-.filter-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
+.load-more {
+  text-align: center;
+  margin-top: 3rem;
 }
 
-.filter-item input[type="checkbox"] {
-  margin-right: 0.5rem;
-}
-
-.filter-item label {
-  color: #666;
+.load-more-button {
+  padding: 0.8rem 2rem;
+  border: none;
+  border-radius: 25px;
+  background: #3498db;
+  color: white;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.main-content {
-  flex: 1;
-  min-width: 0;
+.load-more-button:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-@media (max-width: 1024px) {
-  .content-section {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
-  .discover-header {
+  .discover {
     padding: 1rem;
   }
 
-  .search-input-group {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .search-input {
     flex-direction: column;
   }
 
-  .search-btn {
+  .search-button {
     width: 100%;
-    justify-content: center;
+    padding: 1rem;
   }
 
-  .filter-buttons {
-    flex-wrap: wrap;
-  }
-
-  .filter-btn {
-    flex: 1;
-    min-width: 120px;
+  .results-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style> 

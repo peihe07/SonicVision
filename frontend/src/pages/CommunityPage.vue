@@ -1,11 +1,381 @@
 <template>
-    <div>
-      <h1>Community Page</h1>
-    </div>
-  </template>
+  <div class="community-page">
+    <v-container>
+      <!-- 頁面標題和發帖按鈕 -->
+      <v-row class="mb-6">
+        <v-col cols="8">
+          <h1 class="text-h4">社群討論區</h1>
+        </v-col>
+        <v-col cols="4" class="text-right">
+          <v-btn
+            color="primary"
+            @click="openNewPostDialog"
+          >
+            發布新貼文
+          </v-btn>
+        </v-col>
+      </v-row>
+
+      <!-- 篩選和排序 -->
+      <v-row class="mb-4">
+        <v-col cols="12" sm="4">
+          <v-select
+            v-model="selectedCategory"
+            :items="categories"
+            label="分類"
+            outlined
+            dense
+          ></v-select>
+        </v-col>
+        <v-col cols="12" sm="4">
+          <v-select
+            v-model="sortBy"
+            :items="sortOptions"
+            label="排序方式"
+            outlined
+            dense
+          ></v-select>
+        </v-col>
+      </v-row>
+
+      <!-- 載入中提示 -->
+      <v-row v-if="store.isLoading">
+        <v-col class="text-center">
+          <v-progress-circular
+            indeterminate
+            color="primary"
+          ></v-progress-circular>
+        </v-col>
+      </v-row>
+
+      <!-- 錯誤提示 -->
+      <v-row v-if="store.getError">
+        <v-col>
+          <v-alert
+            type="error"
+            dismissible
+          >
+            {{ store.getError }}
+          </v-alert>
+        </v-col>
+      </v-row>
+
+      <!-- 貼文列表 -->
+      <v-row v-if="!store.isLoading">
+        <v-col cols="12">
+          <v-card
+            v-for="post in filteredPosts"
+            :key="post.id"
+            class="mb-4"
+          >
+            <v-card-title>
+              <v-row align="center">
+                <v-col cols="auto">
+                  <v-avatar size="40">
+                    <v-img :src="post.authorAvatar"></v-img>
+                  </v-avatar>
+                </v-col>
+                <v-col>
+                  {{ post.title }}
+                  <div class="text-caption grey--text">
+                    由 {{ post.author }} 發布於 {{ formatDate(post.createdAt) }}
+                  </div>
+                </v-col>
+              </v-row>
+            </v-card-title>
+            <v-card-text>
+              {{ post.content }}
+            </v-card-text>
+            <v-card-actions>
+              <v-btn
+                text
+                color="primary"
+                @click="likePost(post.id)"
+              >
+                <v-icon left>mdi-thumb-up</v-icon>
+                {{ post.likes }}
+              </v-btn>
+              <v-btn
+                text
+                @click="showComments(post.id)"
+              >
+                <v-icon left>mdi-comment</v-icon>
+                {{ post.comments.length }} 評論
+              </v-btn>
+              <v-spacer></v-spacer>
+              <v-btn
+                v-if="isCurrentUserPost(post)"
+                icon
+                small
+                @click="deletePost(post.id)"
+              >
+                <v-icon>mdi-delete</v-icon>
+              </v-btn>
+            </v-card-actions>
+            
+            <!-- 評論區域 -->
+            <v-expand-transition>
+              <div v-if="post.showComments">
+                <v-divider></v-divider>
+                <v-card-text>
+                  <v-list>
+                    <v-list-item
+                      v-for="comment in post.comments"
+                      :key="comment.id"
+                    >
+                      <v-list-item-avatar>
+                        <v-img :src="comment.authorAvatar"></v-img>
+                      </v-list-item-avatar>
+                      <v-list-item-content>
+                        <v-list-item-title>{{ comment.author }}</v-list-item-title>
+                        <v-list-item-subtitle>{{ comment.content }}</v-list-item-subtitle>
+                        <div class="text-caption grey--text">{{ formatDate(comment.createdAt) }}</div>
+                      </v-list-item-content>
+                      <v-list-item-action v-if="isCurrentUserComment(comment)">
+                        <v-btn
+                          icon
+                          x-small
+                          @click="deleteComment(post.id, comment.id)"
+                        >
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                      </v-list-item-action>
+                    </v-list-item>
+                  </v-list>
+                  
+                  <!-- 新增評論 -->
+                  <v-text-field
+                    v-model="newComments[post.id]"
+                    label="發表評論"
+                    append-outer-icon="mdi-send"
+                    @click:append-outer="addComment(post.id)"
+                    @keyup.enter="addComment(post.id)"
+                  ></v-text-field>
+                </v-card-text>
+              </div>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
+
+    <!-- 發布新貼文對話框 -->
+    <v-dialog
+      v-model="newPostDialog"
+      max-width="600px"
+    >
+      <v-card>
+        <v-card-title>發布新貼文</v-card-title>
+        <v-card-text>
+          <v-form ref="postForm" v-model="validPost">
+            <v-text-field
+              v-model="newPost.title"
+              label="標題"
+              :rules="[(v: string) => !!v || '請輸入標題']"
+              required
+            ></v-text-field>
+            <v-select
+              v-model="newPost.category"
+              :items="categories"
+              label="分類"
+              :rules="[(v: string) => !!v || '請選擇分類']"
+              required
+            ></v-select>
+            <v-textarea
+              v-model="newPost.content"
+              label="內容"
+              :rules="[(v: string) => !!v || '請輸入內容']"
+              required
+            ></v-textarea>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            text
+            @click="newPostDialog = false"
+          >
+            取消
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="submitPost"
+            :disabled="!validPost"
+          >
+            發布
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
+</template>
+
+<script lang="ts">
+import { useAuthStore } from '@/store/modules/auth';
+import { useCommunityStore } from '@/store/modules/community';
+import type { Comment, Post } from '@/types/community';
+import { computed, defineComponent, onMounted, ref } from 'vue';
+
+export default defineComponent({
+  name: 'CommunityPage',
   
-  <script>
-  export default {
-    name: "CommunityPage"
-  };
-  </script>
+  setup() {
+    const store = useCommunityStore();
+    const authStore = useAuthStore();
+    const selectedCategory = ref('all');
+    const sortBy = ref('newest');
+    const newPostDialog = ref(false);
+    const validPost = ref(false);
+    const newComments = ref<Record<number, string>>({});
+
+    const categories = [
+      { text: '全部', value: 'all' },
+      { text: '電影討論', value: 'movies' },
+      { text: '音樂討論', value: 'music' },
+      { text: '心得分享', value: 'experience' },
+      { text: '尋片互助', value: 'help' }
+    ];
+
+    const sortOptions = [
+      { text: '最新', value: 'newest' },
+      { text: '最多讚', value: 'mostLiked' },
+      { text: '最多評論', value: 'mostCommented' }
+    ];
+
+    const newPost = ref({
+      title: '',
+      category: '',
+      content: ''
+    });
+
+    const filteredPosts = computed(() => {
+      let posts = store.getPosts;
+      
+      // 分類篩選
+      if (selectedCategory.value !== 'all') {
+        posts = posts.filter(post => post.category === selectedCategory.value);
+      }
+
+      // 排序
+      switch (sortBy.value) {
+        case 'newest':
+          return [...posts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        case 'mostLiked':
+          return [...posts].sort((a, b) => b.likes - a.likes);
+        case 'mostCommented':
+          return [...posts].sort((a, b) => b.comments.length - a.comments.length);
+        default:
+          return posts;
+      }
+    });
+
+    const formatDate = (date: Date) => {
+      return new Date(date).toLocaleString('zh-TW');
+    };
+
+    const openNewPostDialog = () => {
+      newPostDialog.value = true;
+    };
+
+    const submitPost = async () => {
+      if (!validPost.value) return;
+
+      try {
+        await store.createPost(newPost.value);
+        newPostDialog.value = false;
+        newPost.value = {
+          title: '',
+          category: '',
+          content: ''
+        };
+      } catch (error) {
+        console.error('Failed to create post:', error);
+      }
+    };
+
+    const likePost = async (postId: number) => {
+      try {
+        await store.likePost(postId);
+      } catch (error) {
+        console.error('Failed to like post:', error);
+      }
+    };
+
+    const showComments = (postId: number) => {
+      const post = store.getPostById(postId);
+      if (post) {
+        post.showComments = !post.showComments;
+      }
+    };
+
+    const addComment = async (postId: number) => {
+      const content = newComments.value[postId];
+      if (!content) return;
+
+      try {
+        await store.addComment(postId, content);
+        newComments.value[postId] = '';
+      } catch (error) {
+        console.error('Failed to add comment:', error);
+      }
+    };
+
+    const deletePost = async (postId: number) => {
+      try {
+        await store.deletePost(postId);
+      } catch (error) {
+        console.error('Failed to delete post:', error);
+      }
+    };
+
+    const deleteComment = async (postId: number, commentId: number) => {
+      try {
+        await store.deleteComment(postId, commentId);
+      } catch (error) {
+        console.error('Failed to delete comment:', error);
+      }
+    };
+
+    const isCurrentUserPost = (post: Post) => {
+      return post.author === authStore.currentUser?.username;
+    };
+
+    const isCurrentUserComment = (comment: Comment) => {
+      return comment.author === authStore.currentUser?.username;
+    };
+
+    onMounted(async () => {
+      await store.fetchPosts();
+    });
+
+    return {
+      store,
+      selectedCategory,
+      sortBy,
+      categories,
+      sortOptions,
+      newPostDialog,
+      validPost,
+      newPost,
+      filteredPosts,
+      newComments,
+      formatDate,
+      openNewPostDialog,
+      submitPost,
+      likePost,
+      showComments,
+      addComment,
+      deletePost,
+      deleteComment,
+      isCurrentUserPost,
+      isCurrentUserComment
+    };
+  }
+});
+</script>
+
+<style scoped>
+.community-page {
+  padding: 20px 0;
+}
+</style>

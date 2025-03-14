@@ -1,5 +1,5 @@
 <template>
-    <div class="music-card">
+    <div class="music-card" @click="navigateToDetail">
         <img :src="music.coverUrl" :alt="music.title" class="music-poster">
         <div class="music-info">
             <h3>{{ music.title }}</h3>
@@ -7,8 +7,8 @@
                 <span class="artist">🎤 {{ music.artist }}</span>
                 <span class="rating">⭐ {{ music.rating.toFixed(1) }}</span>
             </div>
-            <div v-if="music.genre" class="genre">
-                🎵 {{ music.genre }}
+            <div class="view-details">
+                點擊查看詳情
             </div>
         </div>
     </div>
@@ -17,6 +17,7 @@
 <script lang="ts">
 import type { Music } from '@/types';
 import { defineComponent, PropType } from 'vue';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
     name: 'MusicCard',
@@ -25,6 +26,20 @@ export default defineComponent({
             type: Object as PropType<Music>,
             required: true
         }
+    },
+    setup(props) {
+        const router = useRouter();
+
+        const navigateToDetail = () => {
+            router.push({
+                name: 'music-detail',
+                params: { id: props.music.id.toString() }
+            });
+        };
+
+        return {
+            navigateToDetail
+        };
     }
 });
 </script>
@@ -36,6 +51,7 @@ export default defineComponent({
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     transition: transform 0.3s ease;
+    cursor: pointer;
 }
 
 .music-card:hover {
@@ -78,11 +94,16 @@ export default defineComponent({
     color: #f1c40f;
 }
 
-.genre {
+.view-details {
     font-size: 0.8rem;
-    color: #7f8c8d;
-    margin-top: 0.5rem;
-    padding: 0.25rem 0;
+    color: #3498db;
+    text-align: center;
+    padding: 0.5rem;
     border-top: 1px solid #eee;
+    margin-top: 0.5rem;
+}
+
+.view-details:hover {
+    background-color: #f8f9fa;
 }
 </style> 
