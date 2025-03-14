@@ -6,7 +6,7 @@ WORKDIR /app
 COPY frontend/package*.json ./
 
 # 安裝依賴
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # 複製前端代碼
 COPY frontend/ .

@@ -310,8 +310,8 @@ export default defineComponent({
   setup() {
     const store = useCommunityStore();
     const authStore = useAuthStore();
-    const selectedCategory = ref('all');
-    const sortBy = ref('newest');
+    const selectedCategory = ref('全部');
+    const sortBy = ref('最新');
     const searchQuery = ref('');
     const newPostDialog = ref(false);
     const validPost = ref(false);
@@ -319,17 +319,17 @@ export default defineComponent({
     const showLoginPrompt = ref(false);
 
     const categories = [
-      { text: '全部', value: 'all' },
-      { text: '電影討論', value: 'movies' },
-      { text: '音樂討論', value: 'music' },
-      { text: '心得分享', value: 'experience' },
-      { text: '尋片互助', value: 'help' }
+      '全部',
+      '電影討論',
+      '音樂討論',
+      '心得分享',
+      '尋片互助'
     ];
 
     const sortOptions = [
-      { text: '最新', value: 'newest' },
-      { text: '最多讚', value: 'mostLiked' },
-      { text: '最多評論', value: 'mostCommented' }
+      '最新',
+      '最多讚',
+      '最多評論'
     ];
 
     const newPost = ref({
@@ -354,17 +354,30 @@ export default defineComponent({
       }
       
       // 分類篩選
-      if (selectedCategory.value !== 'all') {
-        posts = posts.filter(post => post.category === selectedCategory.value);
+      if (selectedCategory.value !== '全部') {
+        posts = posts.filter(post => {
+          switch (selectedCategory.value) {
+            case '電影討論':
+              return post.category === 'movies';
+            case '音樂討論':
+              return post.category === 'music';
+            case '心得分享':
+              return post.category === 'experience';
+            case '尋片互助':
+              return post.category === 'help';
+            default:
+              return true;
+          }
+        });
       }
 
       // 排序
       switch (sortBy.value) {
-        case 'newest':
+        case '最新':
           return [...posts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        case 'mostLiked':
+        case '最多讚':
           return [...posts].sort((a, b) => b.likes - a.likes);
-        case 'mostCommented':
+        case '最多評論':
           return [...posts].sort((a, b) => b.comments.length - a.comments.length);
         default:
           return posts;
@@ -389,7 +402,7 @@ export default defineComponent({
       try {
         const postData = {
           title: newPost.value.title,
-          category: newPost.value.category,
+          category: getCategoryValue(newPost.value.category),
           content: newPost.value.content,
           author: authStore.currentUser?.username || '',
           authorAvatar: authStore.currentUser?.avatar || '/avatars/default.jpg'
@@ -405,6 +418,21 @@ export default defineComponent({
         };
       } catch (error) {
         console.error('Failed to create post:', error);
+      }
+    };
+
+    const getCategoryValue = (categoryText: string): string => {
+      switch (categoryText) {
+        case '電影討論':
+          return 'movies';
+        case '音樂討論':
+          return 'music';
+        case '心得分享':
+          return 'experience';
+        case '尋片互助':
+          return 'help';
+        default:
+          return '';
       }
     };
 
@@ -482,8 +510,18 @@ export default defineComponent({
     };
 
     const getCategoryText = (category: string): string => {
-      const found = categories.find(c => c.value === category);
-      return found ? found.text : '其他';
+      switch (category) {
+        case 'movies':
+          return '電影討論';
+        case 'music':
+          return '音樂討論';
+        case 'experience':
+          return '心得分享';
+        case 'help':
+          return '尋片互助';
+        default:
+          return '其他';
+      }
     };
 
     const expandPost = (post: Post) => {

@@ -12,6 +12,7 @@
           >
           <button @click="handleSearch" class="search-button">
             <i class="fas fa-search"></i>
+            <span class="search-text">搜索</span>
           </button>
         </div>
         <div class="search-type">
@@ -256,6 +257,21 @@ h1 {
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 100px;
+  height: 44px;
+}
+
+.search-button i {
+  font-size: 1.2rem;
+}
+
+.search-text {
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .search-button:hover {
@@ -277,6 +293,12 @@ h1 {
   color: #3498db;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-width: 80px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .type-button.active {
@@ -366,16 +388,29 @@ h1 {
   }
 
   .search-input {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 0.5rem;
   }
 
   .search-button {
-    width: 100%;
-    padding: 1rem;
+    width: auto;
+    padding: 0 1.2rem;
+    height: 44px;
+    min-width: 90px;
+  }
+
+  .search-text {
+    display: inline-block;
   }
 
   .results-grid {
     grid-template-columns: 1fr;
+  }
+
+  .type-button {
+    padding: 0.5rem 1.5rem;
+    min-width: 70px;
+    font-size: 0.9rem;
   }
 }
 </style> 

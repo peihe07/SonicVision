@@ -185,6 +185,7 @@ export async function getTrendingMusic(): Promise<SpotifyTrack[]> {
             return [];
         }
 
+        // 將專輯數據轉換為 track 格式
         return response.data.albums.items.map(album => ({
             id: album.id,
             name: album.name,
@@ -196,8 +197,10 @@ export async function getTrendingMusic(): Promise<SpotifyTrack[]> {
                 artists: album.artists,
                 external_urls: album.external_urls
             },
-            external_urls: album.external_urls,
-            preview_url: null
+            preview_url: null,
+            external_urls: {
+                spotify: album.external_urls.spotify
+            }
         }));
     } catch (error) {
         if (error instanceof AxiosError) {

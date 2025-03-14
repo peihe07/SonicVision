@@ -3,13 +3,13 @@
     <h1>關於 SonicVision</h1>
     <div class="content">
       <section class="mission">
-        <h2>我們的使命</h2>
-        <p>SonicVision 致力於將聲音轉化為視覺體驗，幫助用戶更好地理解和分析聲音數據。我們運用最新的技術，為用戶提供專業的音頻分析解決方案。</p>
+        <h2>熱愛音樂，沉浸電影</h2>
+        <p>感謝讓我活在有這些音樂及電影的時代</p>
       </section>
       
       <section class="team">
         <h2>我們的團隊</h2>
-        <p>我們的團隊由音頻工程師、軟件開發者和數據科學家組成，擁有豐富的行業經驗和專業知識。</p>
+        <p>我和我的電腦</p>
       </section>
 
       <section class="contact">
@@ -17,8 +17,6 @@
         <p>如果您有任何問題或建議，請隨時與我們聯繫：</p>
         <div class="contact-info">
           <p>📧 Email: contact@sonicvision.com</p>
-          <p>📞 電話: (886) 2-1234-5678</p>
-          <p>🏢 地址: 台北市信義區信義路五段7號</p>
         </div>
       </section>
     </div>

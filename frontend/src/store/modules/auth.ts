@@ -8,6 +8,11 @@ export interface User {
     avatar?: string;
 }
 
+interface AuthResponse {
+    user: User;
+    token?: string;
+}
+
 interface AuthState {
     currentUser: User | null;
     loading: boolean;
@@ -31,11 +36,14 @@ export const useAuthStore = defineStore('auth', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.post<{ user: User }>('/api/auth/login', {
+                const response = await axios.post<AuthResponse>('/auth/login', {
                     email,
                     password,
                 });
                 this.currentUser = response.data.user;
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token);
+                }
             } catch (error) {
                 this.error = '登入失敗';
                 throw error;
@@ -48,12 +56,15 @@ export const useAuthStore = defineStore('auth', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.post<{ user: User }>('/api/auth/register', {
+                const response = await axios.post<AuthResponse>('/auth/register', {
                     username,
                     email,
                     password,
                 });
                 this.currentUser = response.data.user;
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token);
+                }
             } catch (error) {
                 this.error = '註冊失敗';
                 throw error;
@@ -64,8 +75,9 @@ export const useAuthStore = defineStore('auth', {
 
         async logout(): Promise<void> {
             try {
-                await axios.post('/api/auth/logout');
+                await axios.post('/auth/logout');
                 this.currentUser = null;
+                localStorage.removeItem('token');
             } catch (error) {
                 this.error = '登出失敗';
                 throw error;
@@ -76,11 +88,12 @@ export const useAuthStore = defineStore('auth', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.get<{ user: User }>('/api/auth/me');
+                const response = await axios.get<AuthResponse>('/auth/me');
                 this.currentUser = response.data.user;
             } catch (error) {
                 this.currentUser = null;
                 this.error = '獲取用戶信息失敗';
+                localStorage.removeItem('token');
             } finally {
                 this.loading = false;
             }
@@ -90,7 +103,7 @@ export const useAuthStore = defineStore('auth', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.put<{ user: User }>('/api/auth/profile', data);
+                const response = await axios.put<AuthResponse>('/auth/profile', data);
                 this.currentUser = response.data.user;
             } catch (error) {
                 this.error = '更新個人資料失敗';

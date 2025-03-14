@@ -5,6 +5,7 @@ WORKDIR /app
 # 設置 Python 環境變數
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV CORS_ORIGIN=http://localhost:8083
 
 # 安裝依賴
 RUN apt-get update && \

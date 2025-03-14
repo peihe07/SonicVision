@@ -14,7 +14,7 @@ import * as directives from 'vuetify/directives';
 import 'vuetify/styles';
 
 // 設置 axios 默認配置
-axios.defaults.baseURL = process.env.VUE_APP_API_URL || 'http://localhost:5000';
+axios.defaults.baseURL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000';
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['Accept'] = 'application/json';
@@ -36,36 +36,19 @@ axios.interceptors.request.use(
 
 // 添加響應攔截器
 axios.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        return response;
+    },
     (error) => {
         if (error.response) {
-            // 處理特定的錯誤狀態
-            switch (error.response.status) {
-                case 401:
-                    // 未授權，可能需要重新登入
-                    console.error('未授權訪問');
-                    break;
-                case 403:
-                    // 禁止訪問
-                    console.error('禁止訪問');
-                    break;
-                case 404:
-                    // 資源不存在
-                    console.error('請求的資源不存在');
-                    break;
-                case 500:
-                    // 服務器錯誤
-                    console.error('服務器錯誤');
-                    break;
-                default:
-                    console.error('請求失敗');
-            }
+            // 服務器返回錯誤狀態碼
+            console.error('Response error:', error.response.data);
         } else if (error.request) {
-            // 請求已發出，但沒有收到響應
-            console.error('無法連接到服務器');
+            // 請求已發出但沒有收到響應
+            console.error('無法連接到服務器，請檢查網絡連接');
         } else {
             // 請求配置有誤
-            console.error('請求配置錯誤:', error.message);
+            console.error('Request error:', error.message);
         }
         return Promise.reject(error);
     }

@@ -8,7 +8,7 @@ interface ApiConfig {
 }
 
 const config: ApiConfig = {
-    baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000/api',
+    baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:5000',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
