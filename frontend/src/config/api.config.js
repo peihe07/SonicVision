@@ -5,7 +5,14 @@ export const API_CONFIG = {
         AUTH_URL: 'https://accounts.spotify.com/api/token',
         CLIENT_ID: process.env.VUE_APP_SPOTIFY_CLIENT_ID,
         CLIENT_SECRET: process.env.VUE_APP_SPOTIFY_CLIENT_SECRET,
-        REDIRECT_URI: process.env.VUE_APP_SPOTIFY_REDIRECT_URI
+        REDIRECT_URI: process.env.VUE_APP_SPOTIFY_REDIRECT_URI,
+        SCOPES: [
+            'user-read-private',
+            'user-read-email',
+            'streaming',
+            'user-library-read',
+            'user-library-modify'
+        ].join(' ')
     },
 
     // TMDB API 配置

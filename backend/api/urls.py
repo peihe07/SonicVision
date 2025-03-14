@@ -6,7 +6,9 @@ from .views import (
     user_profile,
     user_list,
     UserLibraryView,
-    protected_view
+    protected_view,
+    spotify_search,
+    get_preview_url
 )
 
 urlpatterns = [
@@ -17,4 +19,6 @@ urlpatterns = [
     path('users/', user_list, name='user_list'),
     path('library/', UserLibraryView.as_view(), name='user_library'),
     path('protected/', protected_view, name='protected_view'),
+    path('spotify/search/', spotify_search, name='spotify_search'),
+    path('spotify/preview/<str:track_id>/', get_preview_url, name='get_preview_url'),
 ]

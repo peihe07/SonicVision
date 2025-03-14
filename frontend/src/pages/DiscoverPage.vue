@@ -58,16 +58,15 @@
       </div>
 
       <div class="main-content">
-        <div v-if="loading" class="loading">
-          <div class="spinner"></div>
-          <p>載入中...</p>
+        <div v-if="activeType === 'music' || activeType === 'all'">
+          <SpotifySearch />
         </div>
-        <div v-else class="results-grid">
-          <div v-for="item in filteredItems" :key="item.id" class="item-card">
+        <div v-if="activeType === 'movie' || activeType === 'all'" class="results-grid">
+          <div v-for="item in filteredMovies" :key="item.id" class="item-card">
             <img :src="item.image" :alt="item.title" class="item-image">
             <div class="item-info">
               <h3>{{ item.title }}</h3>
-              <p class="item-meta">{{ item.type === 'music' ? '歌手：' : '年份：' }}{{ item.meta }}</p>
+              <p class="item-meta">年份：{{ item.meta }}</p>
               <div class="item-rating">
                 <span class="stars">★★★★☆</span>
                 <span class="rating-number">4.2</span>
@@ -82,8 +81,13 @@
 </template>
 
 <script>
+import SpotifySearch from '../components/SpotifySearch.vue';
+
 export default {
   name: 'DiscoverPage',
+  components: {
+    SpotifySearch
+  },
   data() {
     return {
       searchQuery: '',
@@ -103,13 +107,17 @@ export default {
         { id: 'drama', name: '劇情' },
         { id: 'scifi', name: '科幻' }
       ],
-      items: [] // 將從 API 獲取數據
+      movies: [] // 將從 API 獲取電影數據
     }
   },
   computed: {
-    filteredItems() {
-      // 實現篩選邏輯
-      return this.items
+    filteredMovies() {
+      if (this.selectedMovieGenres.length === 0) {
+        return this.movies;
+      }
+      return this.movies.filter(movie => 
+        this.selectedMovieGenres.includes(movie.genre)
+      );
     }
   },
   methods: {
@@ -117,12 +125,11 @@ export default {
       // 實現搜尋邏輯
     },
     setActiveType(type) {
-      this.activeType = type
-      // 更新搜尋結果
+      this.activeType = type;
     }
   },
   mounted() {
-    // 載入初始數據
+    // 載入電影數據
   }
 }
 </script>
@@ -223,6 +230,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
+  margin-top: 2rem;
 }
 
 .item-card {
@@ -248,22 +256,22 @@ export default {
 }
 
 .item-info h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.1rem;
   color: #2c3e50;
 }
 
 .item-meta {
-  font-size: 0.9rem;
   color: #666;
-  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
 }
 
 .item-rating {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .stars {
@@ -275,28 +283,27 @@ export default {
   font-size: 0.9rem;
 }
 
-.loading {
-  text-align: center;
-  padding: 3rem;
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+.btn-primary {
+  background: #3498db;
+  color: white;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.btn-primary:hover {
+  background: #2980b9;
 }
 
 .btn-sm {
   padding: 0.25rem 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 </style> 

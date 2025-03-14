@@ -5,7 +5,7 @@ const { SPOTIFY } = API_CONFIG
 
 // 創建 axios 實例
 const spotifyApi = axios.create({
-    baseURL: SPOTIFY.BASE_URL,
+    baseURL: 'http://localhost:8000/api',
     headers: {
         'Content-Type': 'application/json'
     }
@@ -14,9 +14,15 @@ const spotifyApi = axios.create({
 // 請求攔截器
 spotifyApi.interceptors.request.use(
     async (config) => {
-        const token = localStorage.getItem('spotify_token')
-        if (token) {
+        try {
+            // 確保有有效的訪問令牌
+            let token = localStorage.getItem('spotify_token')
+            if (!token) {
+                token = await getSpotifyToken()
+            }
             config.headers.Authorization = `Bearer ${token}`
+        } catch (error) {
+            console.error('Failed to get token:', error)
         }
         return config
     },
@@ -30,14 +36,15 @@ spotifyApi.interceptors.response.use(
     (response) => response,
     async (error) => {
         if (error.response?.status === 401) {
-            // Token 過期，嘗試刷新
             try {
-                await refreshToken()
+                // 獲取新的訪問令牌
+                const token = await getSpotifyToken()
+                // 更新原始請求的認證頭
+                error.config.headers.Authorization = `Bearer ${token}`
                 // 重試原始請求
                 return spotifyApi(error.config)
             } catch (refreshError) {
                 localStorage.removeItem('spotify_token')
-                localStorage.removeItem('spotify_refresh_token')
                 return Promise.reject(refreshError)
             }
         }
@@ -48,44 +55,23 @@ spotifyApi.interceptors.response.use(
 // 獲取 Spotify 訪問令牌
 export const getSpotifyToken = async () => {
     try {
+        const credentials = `${SPOTIFY.CLIENT_ID}:${SPOTIFY.CLIENT_SECRET}`;
+        const base64Credentials = btoa(credentials);
+
         const response = await axios.post(SPOTIFY.AUTH_URL,
             'grant_type=client_credentials',
             {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${Buffer.from(`${SPOTIFY.CLIENT_ID}:${SPOTIFY.CLIENT_SECRET}`).toString('base64')}`
+                    'Authorization': `Basic ${base64Credentials}`
                 }
             }
         )
-        localStorage.setItem('spotify_token', response.data.access_token)
-        return response.data.access_token
+        const token = response.data.access_token
+        localStorage.setItem('spotify_token', token)
+        return token
     } catch (error) {
         console.error('Failed to get Spotify token:', error)
-        throw error
-    }
-}
-
-// 刷新 Spotify 令牌
-const refreshToken = async () => {
-    const refreshToken = localStorage.getItem('spotify_refresh_token')
-    if (!refreshToken) {
-        throw new Error('No refresh token available')
-    }
-
-    try {
-        const response = await axios.post(SPOTIFY.AUTH_URL,
-            `grant_type=refresh_token&refresh_token=${refreshToken}`,
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${Buffer.from(`${SPOTIFY.CLIENT_ID}:${SPOTIFY.CLIENT_SECRET}`).toString('base64')}`
-                }
-            }
-        )
-        localStorage.setItem('spotify_token', response.data.access_token)
-        return response.data.access_token
-    } catch (error) {
-        console.error('Failed to refresh Spotify token:', error)
         throw error
     }
 }
@@ -186,6 +172,41 @@ export const getAlbumTracks = async (albumId) => {
         throw error
     }
 }
+
+export const searchSpotify = async (query, type = 'track') => {
+    try {
+        const response = await spotifyApi.get('/spotify/search/', {
+            params: { q: query, type }
+        });
+
+        if (!response.data || !response.data.tracks) {
+            throw new Error('無效的響應格式');
+        }
+
+        return response.data;
+    } catch (error) {
+        console.error('Error searching Spotify:', error);
+        if (error.response?.data?.details) {
+            console.error('Error details:', error.response.data.details);
+        }
+        throw error;
+    }
+};
+
+export const getPreviewUrl = async (trackId) => {
+    try {
+        // 確保在發送請求前有有效的令牌
+        if (!localStorage.getItem('spotify_token')) {
+            await getSpotifyToken()
+        }
+
+        const response = await spotifyApi.get(`/spotify/preview/${trackId}/`);
+        return response.data.preview_url;
+    } catch (error) {
+        console.error('Error getting preview URL:', error);
+        throw error;
+    }
+};
 
 export default {
     searchMusic,
