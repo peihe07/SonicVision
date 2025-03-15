@@ -11,9 +11,8 @@ module.exports = defineConfig({
     hot: true,
     proxy: {
       '^/api/spotify': {
-        target: 'https://api.spotify.com/v1',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        pathRewrite: { '^/api/spotify': '' },
         onProxyReq: (proxyReq) => {
           proxyReq.setHeader('Origin', 'http://localhost:8083');
         }

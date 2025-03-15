@@ -67,31 +67,15 @@ def initialize_spotify_client():
     logger.info(f"使用憑證 - Client ID: {client_id[:5]}... Secret: {client_secret[:5]}...")
     
     try:
-        # 首先驗證憑證
-        auth_string = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-        headers = {
-            'Authorization': f'Basic {auth_string}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        data = {'grant_type': 'client_credentials'}
+        # 使用 SpotifyClientCredentials 進行認證
+        client_credentials_manager = SpotifyClientCredentials(
+            client_id=client_id,
+            client_secret=client_secret
+        )
         
-        logger.info("正在獲取token...")
-        response = requests.post('https://accounts.spotify.com/api/token', headers=headers, data=data)
-        
-        if response.status_code != 200:
-            logger.error(f"獲取token失敗: {response.status_code} - {response.text}")
-            return False
-            
-        access_token = response.json().get('access_token')
-        if not access_token:
-            logger.error("回應中沒有token")
-            return False
-            
-        logger.info("成功獲取token")
-        
-        # 使用訪問令牌初始化 Spotify 客戶端
+        # 初始化 Spotify 客戶端
         spotify = spotipy.Spotify(
-            auth=access_token,
+            client_credentials_manager=client_credentials_manager,
             requests_timeout=10,
             retries=3
         )
@@ -99,21 +83,15 @@ def initialize_spotify_client():
         # 測試搜索功能
         logger.info("測試 Spotify API 連接...")
         test_results = spotify.search(q='test', limit=1, type='track')
-        if not isinstance(test_results, dict) or 'tracks' not in test_results:
-            raise Exception("API 響應格式無效")
+        if not test_results or 'tracks' not in test_results:
+            logger.error("API 測試失敗: 無效的回應格式")
+            return False
             
         logger.info("Spotify 客戶端初始化成功")
         return True
         
-    except requests.exceptions.RequestException as e:
-        logger.error(f"網絡請求錯誤: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"錯誤響應: {e.response.text}")
-        spotify = None
-        return False
     except Exception as e:
-        logger.error(f"Spotify 客戶端初始化失敗: {str(e)}")
-        spotify = None
+        logger.error(f"初始化過程中發生錯誤: {str(e)}")
         return False
 
 # 初始化 Spotify 客戶端
@@ -555,7 +533,7 @@ def google_login(request):
 
 @api_view(['GET'])
 def spotify_featured_playlists(request):
-    """獲取 Spotify 推薦歌單"""
+    """獲取 Spotify 全球最新發行歌曲"""
     global spotify
     
     # 檢查並初始化 Spotify 客戶端
@@ -582,91 +560,79 @@ def spotify_featured_playlists(request):
         )
     
     try:
-        logger.info("獲取 Spotify 推薦歌單")
+        logger.info("獲取 Spotify 全球最新發行歌曲")
         
-        # 獲取熱門歌手
-        results = spotify.search(
-            q='genre:mandopop',  # 搜尋華語流行音樂
-            type='artist',
-            market='TW',
-            limit=5
-        )
+        # 獲取全球最新發行（不指定國家代碼，獲取更多數量）
+        new_releases = spotify.new_releases(limit=50)
         
-        if not results or 'artists' not in results:
-            raise Exception("無法獲取歌手資訊")
-            
-        # 獲取歌手的熱門歌單
-        playlists = []
-        for artist in results['artists']['items']:
-            try:
-                # 搜尋與歌手相關的歌單
-                artist_playlists = spotify.search(
-                    q=f"artist:{artist['name']}",
-                    type='playlist',
-                    market='TW',
-                    limit=4
-                )
-                
-                if artist_playlists and 'playlists' in artist_playlists:
-                    playlists.extend(artist_playlists['playlists']['items'])
-            except Exception as e:
-                logger.warning(f"獲取歌手 {artist['name']} 的歌單時發生錯誤: {str(e)}")
-                continue
+        if not new_releases or 'albums' not in new_releases:
+            error_msg = "無法獲取最新發行資料"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # 格式化回應
+        albums = new_releases['albums']['items']
+        formatted_albums = []
+        
+        for album in albums:
+            # 獲取專輯中的歌曲
+            album_tracks = spotify.album_tracks(album['id'])
+            tracks = []
+            
+            if album_tracks and 'items' in album_tracks:
+                tracks = [{
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artists': [{
+                        'id': artist['id'],
+                        'name': artist['name'],
+                        'external_urls': artist['external_urls']
+                    } for artist in track['artists']],
+                    'preview_url': track['preview_url'],
+                    'external_urls': track['external_urls'],
+                    'duration_ms': track['duration_ms'],
+                    'track_number': track['track_number']
+                } for track in album_tracks['items']]
+            
+            formatted_album = {
+                'id': album['id'],
+                'name': album['name'],
+                'type': album['album_type'],
+                'artists': [{
+                    'id': artist['id'],
+                    'name': artist['name'],
+                    'external_urls': artist['external_urls']
+                } for artist in album['artists']],
+                'images': album['images'],
+                'release_date': album['release_date'],
+                'total_tracks': album['total_tracks'],
+                'external_urls': album['external_urls'],
+                'tracks': tracks,
+                'popularity': album.get('popularity', 0)
+            }
+            formatted_albums.append(formatted_album)
+        
+        # 按發行日期排序（最新的在前）
+        formatted_albums.sort(key=lambda x: x['release_date'], reverse=True)
+        
         response_data = {
-            'playlists': {
-                'items': playlists[:20],  # 限制返回 20 個歌單
-                'total': len(playlists)
+            'albums': {
+                'items': formatted_albums,
+                'total': len(formatted_albums)
             }
         }
         
-        logger.info(f"成功獲取推薦歌單，共 {len(playlists)} 個")
+        logger.info(f"成功獲取全球最新發行，共 {len(formatted_albums)} 張專輯")
         return Response(response_data)
         
     except spotipy.exceptions.SpotifyException as e:
         error_msg = f"Spotify API 錯誤: {str(e)}"
         logger.error(error_msg)
-        
-        if "unauthorized" in str(e).lower():
-            logger.info("嘗試重新初始化 Spotify 客戶端")
-            if initialize_spotify_client():
-                try:
-                    results = spotify.search(
-                        q='genre:mandopop',
-                        type='artist',
-                        market='TW',
-                        limit=5
-                    )
-                    
-                    playlists = []
-                    for artist in results['artists']['items']:
-                        artist_playlists = spotify.search(
-                            q=f"artist:{artist['name']}",
-                            type='playlist',
-                            market='TW',
-                            limit=4
-                        )
-                        if artist_playlists and 'playlists' in artist_playlists:
-                            playlists.extend(artist_playlists['playlists']['items'])
-                    
-                    response_data = {
-                        'playlists': {
-                            'items': playlists[:20],
-                            'total': len(playlists)
-                        }
-                    }
-                    return Response(response_data)
-                except Exception as retry_error:
-                    error_msg = f"重試獲取歌單失敗: {str(retry_error)}"
-                    logger.error(error_msg)
-                    return Response(
-                        {"error": "獲取歌單失敗", "details": error_msg},
-                        status=status.HTTP_503_SERVICE_UNAVAILABLE
-                    )
-        
         return Response(
-            {"error": "獲取歌單失敗", "details": error_msg},
+            {"error": "獲取最新發行失敗", "details": error_msg},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
         
@@ -674,13 +640,13 @@ def spotify_featured_playlists(request):
         error_msg = f"未預期的錯誤: {str(e)}"
         logger.error(error_msg)
         return Response(
-            {"error": "獲取歌單過程中發生錯誤", "details": error_msg},
+            {"error": "獲取最新發行過程中發生錯誤", "details": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 @api_view(['GET'])
 def tmdb_featured_lists(request):
-    """獲取 TMDB 全球評分最高的電影"""
+    """獲取 TMDB 即將上映的電影"""
     if not settings.TMDB_API_KEY:
         error_msg = "TMDB API Key 未設置"
         logger.error(error_msg)
@@ -690,15 +656,15 @@ def tmdb_featured_lists(request):
         )
 
     try:
-        logger.info("獲取 TMDB 全球評分最高的電影")
-        # 使用 top_rated 端點獲取全球評分最高的電影
+        logger.info("獲取 TMDB 即將上映的電影")
+        # 使用 upcoming 端點獲取即將上映的電影
         response = requests.get(
-            'https://api.themoviedb.org/3/movie/top_rated',
+            'https://api.themoviedb.org/3/movie/upcoming',
             params={
                 'api_key': settings.TMDB_API_KEY,
                 'language': 'zh-TW',  # 使用繁體中文
                 'page': 1,
-                'include_adult': False  # 排除成人內容
+                'region': 'TW'  # 獲取台灣地區的上映信息
             }
         )
         
@@ -731,84 +697,52 @@ def tmdb_featured_lists(request):
         # 格式化電影資訊
         formatted_movies = []
         for movie in data.get('results', []):
-            # 獲取電影詳細資訊
+            # 獲取電影詳細資訊，包括發行日期
             movie_detail_response = requests.get(
                 f'https://api.themoviedb.org/3/movie/{movie["id"]}',
                 params={
                     'api_key': settings.TMDB_API_KEY,
                     'language': 'zh-TW',
-                    'append_to_response': 'credits,videos,similar'
+                    'append_to_response': 'release_dates'
                 }
             )
             
             if movie_detail_response.status_code == 200:
                 movie_detail = movie_detail_response.json()
                 
-                # 處理演員資訊
-                cast = []
-                if 'credits' in movie_detail and 'cast' in movie_detail['credits']:
-                    cast = [{
-                        'id': actor['id'],
-                        'name': actor['name'],
-                        'character': actor['character'],
-                        'profile_path': f"https://image.tmdb.org/t/p/w185{actor['profile_path']}" if actor['profile_path'] else None
-                    } for actor in movie_detail['credits']['cast'][:5]]  # 只取前5位演員
-                
-                # 處理預告片
-                videos = []
-                if 'videos' in movie_detail and 'results' in movie_detail['videos']:
-                    videos = [{
-                        'id': video['id'],
-                        'key': video['key'],
-                        'site': video['site'],
-                        'type': video['type']
-                    } for video in movie_detail['videos']['results'] if video['site'] == 'YouTube'][:2]  # 只取前2個YouTube預告片
-                
-                # 處理類似電影
-                similar_movies = []
-                if 'similar' in movie_detail and 'results' in movie_detail['similar']:
-                    similar_movies = [{
-                        'id': similar['id'],
-                        'title': similar['title'],
-                        'poster_path': f"https://image.tmdb.org/t/p/w200{similar['poster_path']}" if similar['poster_path'] else None,
-                        'vote_average': round(float(similar['vote_average']), 1)
-                    } for similar in movie_detail['similar']['results'][:6]]  # 只取前6部類似電影
+                # 獲取台灣的上映日期
+                tw_release_date = None
+                if 'release_dates' in movie_detail:
+                    for country in movie_detail['release_dates'].get('results', []):
+                        if country['iso_3166_1'] == 'TW':
+                            for date in country['release_dates']:
+                                if date.get('type') in [3, 2]:  # 3=theatrical, 2=limited
+                                    tw_release_date = date.get('release_date', '').split('T')[0]
+                                    break
+                            break
                 
                 formatted_movie = {
                     'id': movie['id'],
                     'title': movie['title'],
-                    'original_title': movie_detail.get('original_title'),
                     'overview': movie['overview'],
                     'poster_path': f"https://image.tmdb.org/t/p/w500{movie['poster_path']}" if movie['poster_path'] else None,
                     'backdrop_path': f"https://image.tmdb.org/t/p/original{movie['backdrop_path']}" if movie['backdrop_path'] else None,
-                    'vote_average': round(float(movie['vote_average']), 1),
+                    'vote_average': movie['vote_average'],
                     'vote_count': movie['vote_count'],
                     'release_date': movie['release_date'],
-                    'release_year': movie['release_date'][:4] if movie['release_date'] else None,
-                    'runtime': movie_detail.get('runtime'),
-                    'genres': [genre['name'] for genre in movie_detail.get('genres', [])],
-                    'production_countries': [country['name'] for country in movie_detail.get('production_countries', [])],
-                    'spoken_languages': [lang['name'] for lang in movie_detail.get('spoken_languages', [])],
-                    'budget': movie_detail.get('budget'),
-                    'revenue': movie_detail.get('revenue'),
-                    'cast': cast,
-                    'videos': videos,
-                    'similar_movies': similar_movies,
-                    'status': movie_detail.get('status'),
-                    'tagline': movie_detail.get('tagline'),
-                    'popularity': movie_detail.get('popularity')
+                    'tw_release_date': tw_release_date
                 }
                 formatted_movies.append(formatted_movie)
         
-        # 按評分降序排序
-        formatted_movies.sort(key=lambda x: (x['vote_average'], x['vote_count']), reverse=True)
+        # 按台灣上映日期排序（最近的在前）
+        formatted_movies.sort(key=lambda x: x['tw_release_date'] or x['release_date'])
         
         response_data = {
             'results': formatted_movies,
             'total_results': len(formatted_movies)
         }
         
-        logger.info(f"成功獲取 TMDB 全球評分最高的電影，共 {len(formatted_movies)} 部")
+        logger.info(f"成功獲取 TMDB 即將上映的電影，共 {len(formatted_movies)} 部")
         return Response(response_data)
         
     except requests.exceptions.RequestException as e:
@@ -826,7 +760,7 @@ def tmdb_featured_lists(request):
             {"error": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
+    
 @api_view(['GET'])
 def tmdb_movie_detail(request, movie_id):
     """獲取 TMDB 電影詳細信息"""

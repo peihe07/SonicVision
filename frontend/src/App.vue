@@ -6,8 +6,8 @@
       </div>
       <div class="nav-links">
         <router-link to="/discover" class="nav-link">探索</router-link>
-        <router-link to="/playlists" class="nav-link">主題歌單</router-link>
-        <router-link to="/watchlists" class="nav-link">主題片單</router-link>
+        <router-link to="/playlists" class="nav-link">最新音樂</router-link>
+        <router-link to="/watchlists" class="nav-link">最新電影</router-link>
         <router-link to="/community" class="nav-link">社群</router-link>
         <router-link to="/about" class="nav-link">關於</router-link>
       </div>

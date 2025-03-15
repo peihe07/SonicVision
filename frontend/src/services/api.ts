@@ -6,7 +6,7 @@ import axios from 'axios';
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
 
 // 創建 axios 實例
-const apiClient = axios.create({
+export const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',

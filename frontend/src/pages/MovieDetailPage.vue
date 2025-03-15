@@ -180,6 +180,7 @@ export default defineComponent({
             const movieId = route.params.id;
             if (!movieId) {
                 error.value = '無效的電影 ID';
+                loading.value = false;
                 return;
             }
 
@@ -187,13 +188,33 @@ export default defineComponent({
                 loading.value = true;
                 error.value = null;
                 const response = await axios.get(`/tmdb/movies/${movieId}/`);
+                
                 if (!response.data) {
                     throw new Error('無效的響應數據');
                 }
-                movie.value = response.data;
-            } catch (err) {
+
+                // 驗證必要的數據字段
+                if (!response.data.id || !response.data.title) {
+                    throw new Error('電影數據不完整');
+                }
+
+                movie.value = {
+                    ...response.data,
+                    similar_movies: (response.data.similar_movies || []).filter((movie: { id: number }) => movie && movie.id),
+                    cast: (response.data.cast || []).filter((actor: { id: number }) => actor && actor.id),
+                    videos: (response.data.videos || []).filter((video: { key: string }) => video && video.key)
+                };
+            } catch (err: unknown) {
                 console.error('獲取電影詳情失敗:', err);
-                error.value = '無法載入電影詳情，請稍後再試';
+                const errorData = err as { code?: string; response?: { status?: number }; message?: string };
+                if (errorData.code === 'ERR_NETWORK') {
+                    error.value = '無法連接到服務器，請檢查網絡連接或稍後再試';
+                } else if (errorData.response?.status === 404) {
+                    error.value = '找不到該電影';
+                } else {
+                    error.value = `載入電影詳情失敗: ${errorData.message || '未知錯誤'}`;
+                }
+                movie.value = null;
             } finally {
                 loading.value = false;
             }
@@ -244,8 +265,19 @@ export default defineComponent({
         };
 
         const navigateToMovie = async (movieId: number) => {
-            await router.push(`/movie/${movieId}`);
-            await fetchMovieData();
+            if (!movieId) {
+                console.error('無效的電影 ID');
+                return;
+            }
+            
+            try {
+                loading.value = true;
+                await router.push(`/movie/${movieId}`);
+                await fetchMovieData();
+            } catch (err) {
+                console.error('導航到電影頁面失敗:', err);
+                error.value = '無法載入新的電影詳情';
+            }
         };
 
         // 監聽路由參數變化

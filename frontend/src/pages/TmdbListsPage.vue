@@ -1,6 +1,6 @@
 <template>
   <div class="tmdb-lists-page">
-    <h1>TMDB 推薦片單</h1>
+    <h1>即將上映電影</h1>
     
     <div class="lists-grid" v-if="lists.length">
       <div v-for="movie in lists" :key="movie.id" class="list-card">
@@ -14,10 +14,15 @@
             <div class="meta-info">
               <span class="rating">
                 <i class="fas fa-star"></i>
-                {{ movie.vote_average.toFixed(1) }}
+                {{ movie.vote_average ? movie.vote_average.toFixed(1) : '暫無評分' }}
               </span>
               <span class="vote-count">({{ movie.vote_count }}票)</span>
-              <span class="release-date">{{ movie.release_date?.split('-')[0] }}</span>
+              <div class="dates">
+                <span class="release-date">上映日期：{{ movie.tw_release_date || movie.release_date?.split('-')[0] }}</span>
+                <span v-if="movie.tw_release_date && movie.tw_release_date !== movie.release_date" class="original-release">
+                  (原始上映：{{ movie.release_date?.split('-')[0] }})
+                </span>
+              </div>
             </div>
           </div>
         </router-link>
@@ -54,6 +59,7 @@ interface TmdbApiList {
   vote_average: number
   vote_count: number
   release_date: string
+  tw_release_date?: string
 }
 
 interface TmdbApiResponse {
@@ -70,6 +76,7 @@ interface TmdbList {
   vote_average: number
   vote_count: number
   release_date: string
+  tw_release_date?: string
 }
 
 interface ApiError {
@@ -105,7 +112,8 @@ const fetchLists = async () => {
       backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
       vote_average: item.vote_average,
       vote_count: item.vote_count,
-      release_date: item.release_date
+      release_date: item.release_date,
+      tw_release_date: item.tw_release_date
     }))
   } catch (err: unknown) {
     const apiError = err as ApiError
@@ -202,8 +210,16 @@ h1 {
   margin-right: 0.5rem;
 }
 
-.release-date {
+.dates {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.original-release {
   margin-left: 0.5rem;
+  color: #999;
+  font-size: 0.8rem;
 }
 
 .loading, .error, .no-results {

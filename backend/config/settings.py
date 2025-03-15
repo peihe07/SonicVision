@@ -122,6 +122,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',  # 確保你的認證應用已添加
     'social_django',  # 添加 social-auth-app-django
+    'channels',  # 添加 Django Channels
 ]
 
 MIDDLEWARE = [
@@ -284,3 +285,11 @@ SOCIAL_AUTH_PIPELINE = (
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
 if not TMDB_API_KEY:
     raise ValueError('TMDB_API_KEY 環境變數未設置')
+
+# Channels 配置
+ASGI_APPLICATION = 'config.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
