@@ -259,12 +259,22 @@ export const playlists = {
     getAll: async () => {
         try {
             const response = await apiClient.get('/playlists/');
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以查看歌單');
             }
-            console.error('獲取播放清單失敗:', error);
+            throw error;
+        }
+    },
+    getById: async (id: number) => {
+        try {
+            const response = await apiClient.get(`/playlists/${id}/`);
+            return response;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 404) {
+                throw new Error('歌單不存在');
+            }
             throw error;
         }
     },
@@ -275,12 +285,11 @@ export const playlists = {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以創建歌單');
             }
-            console.error('創建播放清單失敗:', error);
             throw error;
         }
     },
@@ -291,24 +300,53 @@ export const playlists = {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以更新歌單');
             }
-            console.error('更新播放清單失敗:', error);
             throw error;
         }
     },
     delete: async (id: number) => {
         try {
             const response = await apiClient.delete(`/playlists/${id}/`);
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以刪除歌單');
             }
-            console.error('刪除播放清單失敗:', error);
+            throw error;
+        }
+    },
+    searchSongs: async (query: string) => {
+        try {
+            const response = await apiClient.get('/spotify/search/', {
+                params: { q: query, type: 'track' }
+            });
+            return response;
+        } catch (error) {
+            console.error('搜索歌曲失敗:', error);
+            throw error;
+        }
+    },
+    addSong: async (playlistId: number, songId: string) => {
+        try {
+            const response = await apiClient.post(`/playlists/${playlistId}/songs/`, {
+                song_id: songId
+            });
+            return response;
+        } catch (error) {
+            console.error('添加歌曲失敗:', error);
+            throw error;
+        }
+    },
+    removeSong: async (playlistId: number, songId: string) => {
+        try {
+            const response = await apiClient.delete(`/playlists/${playlistId}/songs/${songId}/`);
+            return response;
+        } catch (error) {
+            console.error('移除歌曲失敗:', error);
             throw error;
         }
     }
@@ -318,12 +356,22 @@ export const watchlists = {
     getAll: async () => {
         try {
             const response = await apiClient.get('/watchlists/');
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以查看片單');
             }
-            console.error('獲取觀看清單失敗:', error);
+            throw error;
+        }
+    },
+    getById: async (id: number) => {
+        try {
+            const response = await apiClient.get(`/watchlists/${id}/`);
+            return response;
+        } catch (error: unknown) {
+            if ((error as AxiosError)?.response?.status === 404) {
+                throw new Error('片單不存在');
+            }
             throw error;
         }
     },
@@ -334,12 +382,11 @@ export const watchlists = {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以創建片單');
             }
-            console.error('創建觀看清單失敗:', error);
             throw error;
         }
     },
@@ -350,24 +397,62 @@ export const watchlists = {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以更新片單');
             }
-            console.error('更新觀看清單失敗:', error);
             throw error;
         }
     },
     delete: async (id: number) => {
         try {
             const response = await apiClient.delete(`/watchlists/${id}/`);
-            return response.data;
+            return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('請先登入以刪除片單');
             }
-            console.error('刪除觀看清單失敗:', error);
+            throw error;
+        }
+    },
+    searchMovies: async (query: string) => {
+        try {
+            const response = await apiClient.get('/movies/search/', {
+                params: { q: query }
+            });
+            return response;
+        } catch (error) {
+            console.error('搜索電影失敗:', error);
+            throw error;
+        }
+    },
+    addMovie: async (watchlistId: number, movieId: string) => {
+        try {
+            const response = await apiClient.post(`/watchlists/${watchlistId}/movies/`, {
+                movie_id: movieId
+            });
+            return response;
+        } catch (error) {
+            console.error('添加電影失敗:', error);
+            throw error;
+        }
+    },
+    removeMovie: async (watchlistId: number, movieId: string) => {
+        try {
+            const response = await apiClient.delete(`/watchlists/${watchlistId}/movies/${movieId}/`);
+            return response;
+        } catch (error) {
+            console.error('移除電影失敗:', error);
+            throw error;
+        }
+    },
+    toggleWatched: async (watchlistId: number, movieId: string) => {
+        try {
+            const response = await apiClient.post(`/watchlists/${watchlistId}/movies/${movieId}/toggle-watched/`);
+            return response;
+        } catch (error) {
+            console.error('更新觀看狀態失敗:', error);
             throw error;
         }
     }

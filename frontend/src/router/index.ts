@@ -32,14 +32,22 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/playlists',
         name: 'playlists',
-        component: () => import('@/pages/PlaylistsPage.vue'),
-        meta: { requiresAuth: true }
+        component: () => import('@/pages/PlaylistsPage.vue')
+    },
+    {
+        path: '/playlist/:id',
+        name: 'playlist-detail',
+        component: () => import('@/pages/PlaylistDetailPage.vue')
     },
     {
         path: '/watchlists',
         name: 'watchlists',
-        component: () => import('@/pages/WatchlistsPage.vue'),
-        meta: { requiresAuth: true }
+        component: () => import('@/pages/WatchlistsPage.vue')
+    },
+    {
+        path: '/watchlist/:id',
+        name: 'watchlist-detail',
+        component: () => import('@/pages/WatchlistDetailPage.vue')
     },
     {
         path: '/community',

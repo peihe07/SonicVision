@@ -117,11 +117,17 @@
 
 <script>
 import { playlists } from '@/services/api'
+import { useAuthStore } from '@/store/modules/auth'
+import { computed, defineComponent, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-export default {
+export default defineComponent({
   name: 'PlaylistsPage',
-  data() {
-    return {
+  
+  setup() {
+    const authStore = useAuthStore()
+    const router = useRouter()
+    const state = {
       playlists: [],
       loading: false,
       showCreateModal: false,
@@ -135,112 +141,128 @@ export default {
         isPublic: true
       }
     }
-  },
-  computed: {
-    isAuthenticated() {
-      return this.$store.state.auth.isAuthenticated
-    },
-    currentUser() {
-      return this.$store.state.auth.user?.username
-    }
-  },
-  methods: {
-    async fetchPlaylists() {
+
+    const isAuthenticated = computed(() => authStore.isAuthenticated)
+    const currentUser = computed(() => authStore.currentUser?.username)
+
+    const fetchPlaylists = async () => {
       try {
-        this.loading = true
+        state.loading = true
         const response = await playlists.getAll()
-        this.playlists = response.data.map(playlist => ({
+        state.playlists = response.data.map(playlist => ({
           ...playlist,
-          canEdit: this.isAuthenticated && playlist.owner === this.currentUser
+          canEdit: isAuthenticated.value && playlist.owner === currentUser.value
         }))
       } catch (err) {
         console.error('獲取歌單失敗:', err)
-        this.$toast.error('無法載入歌單，請稍後再試')
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    formatDate(date) {
+    }
+
+    const formatDate = (date) => {
       return new Date(date).toLocaleDateString('zh-TW')
-    },
-    handleCoverUpload(event) {
+    }
+
+    const handleCoverUpload = (event) => {
       const file = event.target.files[0]
       if (file) {
-        this.form.coverFile = file
+        state.form.coverFile = file
       }
-    },
-    async handleSubmit() {
+    }
+
+    const handleSubmit = async () => {
       try {
-        this.loading = true
+        state.loading = true
         const formData = new FormData()
-        formData.append('name', this.form.name)
-        formData.append('description', this.form.description)
-        formData.append('isPublic', this.form.isPublic)
-        if (this.form.coverFile) {
-          formData.append('cover', this.form.coverFile)
+        formData.append('name', state.form.name)
+        formData.append('description', state.form.description)
+        formData.append('isPublic', state.form.isPublic)
+        if (state.form.coverFile) {
+          formData.append('cover', state.form.coverFile)
         }
 
-        if (this.showEditModal) {
-          await playlists.update(this.selectedPlaylistId, formData)
+        if (state.showEditModal) {
+          await playlists.update(state.selectedPlaylistId, formData)
         } else {
           await playlists.create(formData)
         }
 
-        this.closeModal()
-        this.fetchPlaylists()
+        closeModal()
+        fetchPlaylists()
       } catch (err) {
         console.error('Failed to save playlist:', err)
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    editPlaylist(playlist) {
-      this.form = {
+    }
+
+    const editPlaylist = (playlist) => {
+      state.form = {
         name: playlist.name,
         description: playlist.description,
         isPublic: playlist.isPublic,
         coverFile: null
       }
-      this.selectedPlaylistId = playlist.id
-      this.showEditModal = true
-    },
-    deletePlaylist(id) {
-      this.selectedPlaylistId = id
-      this.showDeleteModal = true
-    },
-    async confirmDelete() {
+      state.selectedPlaylistId = playlist.id
+      state.showEditModal = true
+    }
+
+    const deletePlaylist = (id) => {
+      state.selectedPlaylistId = id
+      state.showDeleteModal = true
+    }
+
+    const confirmDelete = async () => {
       try {
-        this.loading = true
-        await playlists.delete(this.selectedPlaylistId)
-        this.closeModal()
-        this.fetchPlaylists()
+        state.loading = true
+        await playlists.delete(state.selectedPlaylistId)
+        closeModal()
+        fetchPlaylists()
       } catch (err) {
         console.error('Failed to delete playlist:', err)
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    playPlaylist(id) {
-      // TODO: 實現播放功能
-      console.log('Play playlist:', id)
-    },
-    closeModal() {
-      this.showCreateModal = false
-      this.showEditModal = false
-      this.showDeleteModal = false
-      this.selectedPlaylistId = null
-      this.form = {
+    }
+
+    const closeModal = () => {
+      state.showCreateModal = false
+      state.showEditModal = false
+      state.showDeleteModal = false
+      state.selectedPlaylistId = null
+      state.form = {
         name: '',
         description: '',
         coverFile: null,
         isPublic: true
       }
     }
-  },
-  mounted() {
-    this.fetchPlaylists()
+
+    const playPlaylist = (id) => {
+      router.push(`/playlist/${id}`)
+    }
+
+    onMounted(() => {
+      fetchPlaylists()
+    })
+
+    return {
+      ...state,
+      isAuthenticated,
+      currentUser,
+      fetchPlaylists,
+      formatDate,
+      handleCoverUpload,
+      handleSubmit,
+      editPlaylist,
+      deletePlaylist,
+      confirmDelete,
+      closeModal,
+      playPlaylist
+    }
   }
-}
+})
 </script>
 
 <style scoped>

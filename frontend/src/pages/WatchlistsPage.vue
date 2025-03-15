@@ -123,11 +123,17 @@
 
 <script>
 import { watchlists } from '@/services/api'
+import { useAuthStore } from '@/store/modules/auth'
+import { computed, defineComponent, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-export default {
+export default defineComponent({
   name: 'WatchlistsPage',
-  data() {
-    return {
+  
+  setup() {
+    const authStore = useAuthStore()
+    const router = useRouter()
+    const state = {
       watchlists: [],
       loading: false,
       showCreateModal: false,
@@ -141,111 +147,128 @@ export default {
         isPublic: true
       }
     }
-  },
-  computed: {
-    isAuthenticated() {
-      return this.$store.state.auth.isAuthenticated
-    },
-    currentUser() {
-      return this.$store.state.auth.user?.username
-    }
-  },
-  methods: {
-    async fetchWatchlists() {
+
+    const isAuthenticated = computed(() => authStore.isAuthenticated)
+    const currentUser = computed(() => authStore.currentUser?.username)
+
+    const fetchWatchlists = async () => {
       try {
-        this.loading = true
+        state.loading = true
         const response = await watchlists.getAll()
-        this.watchlists = response.data.map(watchlist => ({
+        state.watchlists = response.data.map(watchlist => ({
           ...watchlist,
-          canEdit: this.isAuthenticated && watchlist.owner === this.currentUser
+          canEdit: isAuthenticated.value && watchlist.owner === currentUser.value
         }))
       } catch (err) {
         console.error('獲取片單失敗:', err)
-        this.$toast.error('無法載入片單，請稍後再試')
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    formatDate(date) {
+    }
+
+    const formatDate = (date) => {
       return new Date(date).toLocaleDateString('zh-TW')
-    },
-    handleCoverUpload(event) {
+    }
+
+    const handleCoverUpload = (event) => {
       const file = event.target.files[0]
       if (file) {
-        this.form.coverFile = file
+        state.form.coverFile = file
       }
-    },
-    async handleSubmit() {
+    }
+
+    const handleSubmit = async () => {
       try {
-        this.loading = true
+        state.loading = true
         const formData = new FormData()
-        formData.append('name', this.form.name)
-        formData.append('description', this.form.description)
-        formData.append('isPublic', this.form.isPublic)
-        if (this.form.coverFile) {
-          formData.append('cover', this.form.coverFile)
+        formData.append('name', state.form.name)
+        formData.append('description', state.form.description)
+        formData.append('isPublic', state.form.isPublic)
+        if (state.form.coverFile) {
+          formData.append('cover', state.form.coverFile)
         }
 
-        if (this.showEditModal) {
-          await watchlists.update(this.selectedWatchlistId, formData)
+        if (state.showEditModal) {
+          await watchlists.update(state.selectedWatchlistId, formData)
         } else {
           await watchlists.create(formData)
         }
 
-        this.closeModal()
-        this.fetchWatchlists()
+        closeModal()
+        fetchWatchlists()
       } catch (err) {
         console.error('Failed to save watchlist:', err)
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    editWatchlist(watchlist) {
-      this.form = {
+    }
+
+    const editWatchlist = (watchlist) => {
+      state.form = {
         name: watchlist.name,
         description: watchlist.description,
         isPublic: watchlist.isPublic,
         coverFile: null
       }
-      this.selectedWatchlistId = watchlist.id
-      this.showEditModal = true
-    },
-    deleteWatchlist(id) {
-      this.selectedWatchlistId = id
-      this.showDeleteModal = true
-    },
-    async confirmDelete() {
+      state.selectedWatchlistId = watchlist.id
+      state.showEditModal = true
+    }
+
+    const deleteWatchlist = (id) => {
+      state.selectedWatchlistId = id
+      state.showDeleteModal = true
+    }
+
+    const confirmDelete = async () => {
       try {
-        this.loading = true
-        await watchlists.delete(this.selectedWatchlistId)
-        this.closeModal()
-        this.fetchWatchlists()
+        state.loading = true
+        await watchlists.delete(state.selectedWatchlistId)
+        closeModal()
+        fetchWatchlists()
       } catch (err) {
         console.error('Failed to delete watchlist:', err)
       } finally {
-        this.loading = false
+        state.loading = false
       }
-    },
-    viewWatchlist(id) {
-      this.$router.push(`/watchlists/${id}`)
-    },
-    closeModal() {
-      this.showCreateModal = false
-      this.showEditModal = false
-      this.showDeleteModal = false
-      this.selectedWatchlistId = null
-      this.form = {
+    }
+
+    const closeModal = () => {
+      state.showCreateModal = false
+      state.showEditModal = false
+      state.showDeleteModal = false
+      state.selectedWatchlistId = null
+      state.form = {
         name: '',
         description: '',
         coverFile: null,
         isPublic: true
       }
     }
-  },
-  mounted() {
-    this.fetchWatchlists()
+
+    const viewWatchlist = (id) => {
+      router.push(`/watchlist/${id}`)
+    }
+
+    onMounted(() => {
+      fetchWatchlists()
+    })
+
+    return {
+      ...state,
+      isAuthenticated,
+      currentUser,
+      fetchWatchlists,
+      formatDate,
+      handleCoverUpload,
+      handleSubmit,
+      editWatchlist,
+      deleteWatchlist,
+      confirmDelete,
+      closeModal,
+      viewWatchlist
+    }
   }
-}
+})
 </script>
 
 <style scoped>

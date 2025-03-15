@@ -466,8 +466,8 @@ class PlaylistViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        if self.action == 'list' and not self.request.user.is_authenticated:
-            return Playlist.objects.filter(is_featured=True)
+        if not self.request.user.is_authenticated:
+            return Playlist.objects.filter(is_public=True)
         return Playlist.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
@@ -478,8 +478,8 @@ class WatchlistViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        if self.action == 'list' and not self.request.user.is_authenticated:
-            return Watchlist.objects.filter(is_featured=True)
+        if not self.request.user.is_authenticated:
+            return Watchlist.objects.filter(is_public=True)
         return Watchlist.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
