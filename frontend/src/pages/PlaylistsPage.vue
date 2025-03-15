@@ -1,8 +1,8 @@
 <template>
   <div class="playlists-page">
     <div class="page-header">
-      <h1>我的歌單</h1>
-      <button class="btn btn-primary" @click="showCreateModal = true">
+      <h1>推薦歌單</h1>
+      <button class="btn btn-primary" @click="showCreateModal = true" v-if="isAuthenticated">
         <i class="fas fa-plus"></i> 創建新歌單
       </button>
     </div>
@@ -19,7 +19,7 @@
         <div class="playlist-info">
           <h3>{{ playlist.name }}</h3>
           <p class="playlist-meta">{{ playlist.songCount }} 首歌曲 • {{ formatDate(playlist.updatedAt) }}</p>
-          <div class="playlist-actions">
+          <div class="playlist-actions" v-if="isAuthenticated && playlist.canEdit">
             <button class="btn btn-icon" @click="editPlaylist(playlist)">
               <i class="fas fa-edit"></i>
             </button>
@@ -33,9 +33,9 @@
 
     <div class="empty-state" v-else-if="!loading && !playlists.length">
       <i class="fas fa-music"></i>
-      <h2>還沒有歌單</h2>
-      <p>創建一個歌單，開始收藏喜愛的音樂吧！</p>
-      <button class="btn btn-primary" @click="showCreateModal = true">
+      <h2>暫無推薦歌單</h2>
+      <p v-if="isAuthenticated">創建一個歌單，開始收藏喜愛的音樂吧！</p>
+      <button class="btn btn-primary" @click="showCreateModal = true" v-if="isAuthenticated">
         創建歌單
       </button>
     </div>
@@ -136,14 +136,26 @@ export default {
       }
     }
   },
+  computed: {
+    isAuthenticated() {
+      return this.$store.state.auth.isAuthenticated
+    },
+    currentUser() {
+      return this.$store.state.auth.user?.username
+    }
+  },
   methods: {
     async fetchPlaylists() {
       try {
         this.loading = true
         const response = await playlists.getAll()
-        this.playlists = response.data
+        this.playlists = response.data.map(playlist => ({
+          ...playlist,
+          canEdit: this.isAuthenticated && playlist.owner === this.currentUser
+        }))
       } catch (err) {
-        console.error('Failed to fetch playlists:', err)
+        console.error('獲取歌單失敗:', err)
+        this.$toast.error('無法載入歌單，請稍後再試')
       } finally {
         this.loading = false
       }

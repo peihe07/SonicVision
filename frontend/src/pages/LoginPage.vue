@@ -58,47 +58,126 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { useAuthStore } from '@/store/modules/auth';
+import { defineComponent, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-export default {
+interface GoogleResponse {
+  code: string;
+}
+
+interface GoogleCodeClient {
+  requestCode(): void;
+}
+
+interface GoogleOAuth2 {
+  initCodeClient(config: {
+    client_id: string;
+    scope: string;
+    ux_mode: string;
+    redirect_uri: string;
+    state: string;
+    callback: (response: GoogleResponse) => void;
+  }): GoogleCodeClient;
+}
+
+interface GoogleAccounts {
+  oauth2: GoogleOAuth2;
+}
+
+interface Google {
+  accounts: GoogleAccounts;
+}
+
+interface FormData {
+  username: string;
+  password: string;
+  remember: boolean;
+}
+
+export default defineComponent({
   name: 'LoginPage',
-  data() {
-    return {
-      form: {
-        username: '',
-        password: '',
-        remember: false
-      },
-      error: null
-    }
-  },
-  computed: {
-    loading() {
-      return useAuthStore().loading;
-    }
-  },
-  methods: {
-    async handleLogin() {
-      const authStore = useAuthStore();
+  
+  setup() {
+    const router = useRouter();
+    const authStore = useAuthStore();
+    
+    const form = ref<FormData>({
+      username: '',
+      password: '',
+      remember: false
+    });
+    
+    const error = ref<string | null>(null);
+    const loading = ref(false);
+
+    const handleLogin = async () => {
       try {
-        this.error = null;
-        await authStore.login(this.form.username, this.form.password);
-        this.$router.push('/discover');
+        loading.value = true;
+        error.value = null;
+        await authStore.login({
+          username: form.value.username,
+          password: form.value.password
+        });
+        router.push('/discover');
       } catch (err) {
         console.error('Login error:', err);
-        this.error = authStore.error || '登入失敗，請檢查您的用戶名稱和密碼';
+        error.value = authStore.error || '登入失敗，請檢查您的用戶名稱和密碼';
+      } finally {
+        loading.value = false;
       }
-    },
-    async handleGoogleLogin() {
+    };
+
+    const handleGoogleLogin = async () => {
       try {
-        // TODO: 實現 Google 登入邏輯
+        loading.value = true;
+        const clientId = process.env.VUE_APP_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+          console.error('Google Client ID 未配置');
+          error.value = '系統配置錯誤，請聯繫管理員';
+          return;
+        }
+
+        const googleApi = (window as unknown as { google: Google }).google;
+        const client = googleApi.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope: 'email profile openid',
+          ux_mode: 'redirect',
+          redirect_uri: `${window.location.origin}/auth/callback`,
+          state: 'login',
+          callback: async (response: GoogleResponse) => {
+            if (response.code) {
+              try {
+                await authStore.googleLogin(response.code);
+                router.push('/discover');
+              } catch (err) {
+                console.error('Google 登入處理失敗:', err);
+                error.value = '使用 Google 登入失敗，請稍後再試';
+              } finally {
+                loading.value = false;
+              }
+            }
+          },
+        });
+
+        client.requestCode();
       } catch (err) {
-        this.error = '使用 Google 登入失敗，請稍後再試';
+        console.error('Google Sign-In 初始化失敗:', err);
+        error.value = '無法連接到 Google 服務，請確保瀏覽器未阻擋彈出視窗';
+        loading.value = false;
       }
-    }
+    };
+
+    return {
+      form,
+      error,
+      loading,
+      handleLogin,
+      handleGoogleLogin
+    };
   }
-}
+});
 </script>
 
 <style scoped>
@@ -179,6 +258,37 @@ export default {
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+}
+
+.btn-outline {
+  background-color: white;
+  border: 2px solid #3498db;
+  color: #3498db;
+}
+
+.btn-outline:hover {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #95a5a6;
+  color: white;
+  border: none;
 }
 
 .error-message {

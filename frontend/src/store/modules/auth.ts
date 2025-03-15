@@ -9,6 +9,12 @@ import type {
 } from '@/types/api';
 import { defineStore } from 'pinia';
 
+interface GoogleLoginResponse {
+    token: string;
+    refresh: string;
+    user: ApiUser;
+}
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         currentUser: null as ApiUser | null,
@@ -92,6 +98,22 @@ export const useAuthStore = defineStore('auth', {
                 this.setUser(response.data.user);
             } catch (error) {
                 this.error = '註冊失敗';
+                throw error;
+            }
+        },
+
+        async googleLogin(code: string) {
+            this.error = null;
+            try {
+                const response = await authAPI.googleLogin(code);
+                const data = response.data as GoogleLoginResponse;
+                this.setToken(data.token);
+                if (data.refresh) {
+                    localStorage.setItem('refresh_token', data.refresh);
+                }
+                this.setUser(data.user);
+            } catch (error) {
+                this.error = '使用 Google 登入失敗';
                 throw error;
             }
         },

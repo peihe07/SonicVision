@@ -96,11 +96,60 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthAPI } from '../api/auth';
 import PolicyDialog from '../components/PolicyDialog.vue';
 import { useAuthStore } from '../store/modules/auth';
+
+// Google API 類型定義
+interface GoogleResponse {
+  code: string;
+}
+
+interface GoogleCodeClient {
+  requestCode(): void;
+}
+
+interface GoogleOAuth2 {
+  initCodeClient(config: {
+    client_id: string;
+    scope: string;
+    ux_mode: string;
+    redirect_uri: string;
+    state: string;
+    callback: (response: GoogleResponse) => void;
+  }): GoogleCodeClient;
+}
+
+interface GoogleAccounts {
+  oauth2: GoogleOAuth2;
+}
+
+interface Google {
+  accounts: GoogleAccounts;
+}
+
+// 使用類型斷言來處理 window.google
+const googleApi = (window as unknown as { google: Google }).google;
+
+interface FormData {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  agreeToTerms: boolean;
+}
+
+interface ErrorResponse {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  request?: unknown;
+}
 
 export default defineComponent({
   name: 'RegisterPage',
@@ -110,8 +159,9 @@ export default defineComponent({
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();
+    const authAPI = useAuthAPI();
     
-    const form = ref({
+    const form = ref<FormData>({
       username: '',
       email: '',
       password: '',
@@ -120,7 +170,7 @@ export default defineComponent({
     });
     
     const loading = ref(false);
-    const error = ref(null);
+    const error = ref<string | null>(null);
     const termsDialog = ref(false);
     const privacyDialog = ref(false);
 
@@ -274,15 +324,15 @@ export default defineComponent({
 
     const validateForm = () => {
       if (form.value.password.length < 8) {
-        error.value = '密碼長度必須至少 8 位';
+        error.value = '密碼長度必須至少 8 位' as string;
         return false;
       }
       if (!/[A-Za-z]/.test(form.value.password) || !/[0-9]/.test(form.value.password)) {
-        error.value = '密碼必須包含字母和數字';
+        error.value = '密碼必須包含字母和數字' as string;
         return false;
       }
       if (form.value.password !== form.value.confirmPassword) {
-        error.value = '兩次輸入的密碼不一致';
+        error.value = '兩次輸入的密碼不一致' as string;
         return false;
       }
       return true;
@@ -295,20 +345,25 @@ export default defineComponent({
         loading.value = true;
         error.value = null;
         
-        await authStore.register(form.value.username, form.value.email, form.value.password);
+        await authStore.register({
+          username: form.value.username,
+          email: form.value.email,
+          password: form.value.password
+        });
         
         // 註冊成功後，等待一下再跳轉
         setTimeout(() => {
           router.push('/discover');
         }, 1000);
         
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Registration error:', err);
-        if (err.response) {
+        if (err && typeof err === 'object' && 'response' in err) {
           // 後端返回的錯誤信息
-          const errorMessage = err.response.data.message || '註冊失敗，請稍後再試';
+          const errorResponse = err as ErrorResponse;
+          const errorMessage = errorResponse.response?.data?.message || '註冊失敗，請稍後再試';
           error.value = errorMessage;
-        } else if (err.request) {
+        } else if (err && typeof err === 'object' && 'request' in err) {
           // 請求已發出但沒有收到響應
           error.value = '無法連接到服務器，請檢查網絡連接';
         } else {
@@ -322,11 +377,62 @@ export default defineComponent({
 
     const handleGoogleRegister = async () => {
       try {
-        // TODO: 實現 Google 註冊邏輯
-        error.value = 'Google 註冊功能尚未實現';
-      } catch (err) {
-        error.value = '使用 Google 註冊失敗，請稍後再試';
-        console.error('Google registration error:', err);
+        loading.value = true;
+        error.value = null;
+
+        const clientId = process.env.VUE_APP_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+          console.error('Google Client ID 未配置');
+          error.value = '系統配置錯誤，請聯繫管理員';
+          return;
+        }
+
+        console.log('初始化 Google OAuth 流程');
+        const client = googleApi.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope: 'email profile openid',
+          ux_mode: 'redirect',
+          redirect_uri: `${window.location.origin}/auth/callback`,
+          state: 'register',
+          callback: async (response: GoogleResponse) => {
+            console.log('收到 Google OAuth 回調');
+            if (response.code) {
+              try {
+                console.log('開始處理 Google 註冊');
+                await authAPI.googleLogin(response.code);
+                console.log('Google 註冊成功');
+                router.push('/discover');
+              } catch (err: unknown) {
+                console.error('Google 註冊處理失敗:', err);
+                const errorMessage = err instanceof Error ? err.message : '使用 Google 註冊失敗，請稍後再試';
+                error.value = errorMessage;
+                
+                // 如果是網絡錯誤，給出更具體的提示
+                if (err && typeof err === 'object' && 'request' in err) {
+                  error.value = '無法連接到服務器，請檢查網絡連接';
+                }
+                // 如果是後端返回的錯誤
+                else if (err && typeof err === 'object' && 'response' in err) {
+                  const errorResponse = err as ErrorResponse;
+                  error.value = errorResponse.response?.data?.message || '註冊失敗，請稍後再試';
+                }
+              } finally {
+                loading.value = false;
+              }
+            } else {
+              console.error('未收到 Google 授權碼');
+              error.value = '無法完成 Google 註冊，請重試';
+              loading.value = false;
+            }
+          },
+        });
+
+        console.log('請求 Google 授權碼');
+        client.requestCode();
+      } catch (err: unknown) {
+        console.error('Google Sign-In 初始化失敗:', err);
+        error.value = '無法連接到 Google 服務，請確保瀏覽器未阻擋彈出視窗';
+        loading.value = false;
       }
     };
 
@@ -428,6 +534,37 @@ export default defineComponent({
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+}
+
+.btn-outline {
+  background-color: white;
+  border: 2px solid #3498db;
+  color: #3498db;
+}
+
+.btn-outline:hover {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #95a5a6;
+  color: white;
+  border: none;
 }
 
 .error-message {
@@ -490,10 +627,5 @@ export default defineComponent({
 
 .auth-footer a:hover {
   text-decoration: underline;
-}
-
-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 </style>

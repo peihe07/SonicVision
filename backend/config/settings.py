@@ -28,10 +28,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 允許 Vue.js 向 Django 發送請求
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",  # Vue 開發服務器
+    "http://localhost:8080",
     "http://127.0.0.1:8080",
-    "http://localhost:5173",  # Vite 開發服務器
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:8083",
+    "http://127.0.0.1:8083",
 ]
 
 # 允許跨域發送 Cookie
@@ -78,6 +80,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
 # CSRF 設置
@@ -86,18 +89,20 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8080",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:8083",
+    "http://127.0.0.1:8083",
 ]
 
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SECURE = False  # 開發環境設為 False，生產環境應設為 True
-CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
-CSRF_HEADER_NAME = 'X-CSRFToken'
+CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+CSRF_COOKIE_SECURE = False  # 開發環境設為 False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
 
 # Session 設置
+SESSION_COOKIE_SECURE = False  # 開發環境設為 False
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False
 
 # Application definition
 INSTALLED_APPS = [
@@ -112,6 +117,7 @@ INSTALLED_APPS = [
     'api',
     'corsheaders',
     'accounts',  # 確保你的認證應用已添加
+    'social_django',  # 添加 social-auth-app-django
 ]
 
 MIDDLEWARE = [
@@ -120,7 +126,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # 暫時禁用 CSRF
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -244,3 +250,28 @@ LOGGING = {
 }
 
 logging.config.dictConfig(LOGGING)
+
+# Google OAuth2 設置
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+]
+
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)

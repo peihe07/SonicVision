@@ -27,7 +27,7 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-        if (error.response.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
                 const refreshToken = localStorage.getItem('refresh_token');
@@ -45,4 +45,31 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
     }
-); 
+);
+
+export const useAuthAPI = () => {
+    const googleLogin = async (code: string) => {
+        try {
+            const response = await api.post('/api/auth/google/', {
+                code: code,
+                redirect_uri: `${window.location.origin}/auth/callback`
+            });
+
+            if (response.data.token) {
+                localStorage.setItem('access_token', response.data.token);
+            }
+            if (response.data.refresh) {
+                localStorage.setItem('refresh_token', response.data.refresh);
+            }
+
+            return response.data;
+        } catch (error) {
+            console.error('Google login error:', error);
+            throw error;
+        }
+    };
+
+    return {
+        googleLogin
+    };
+}; 

@@ -17,11 +17,14 @@ import logging
 import base64
 import requests
 import time
-from .models import Post, Comment
-from .serializers import PostSerializer, CommentSerializer
+from .models import Post, Comment, Playlist, Watchlist
+from .serializers import PostSerializer, CommentSerializer, PlaylistSerializer, WatchlistSerializer
 from rest_framework import serializers
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
+from social_django.utils import load_strategy, load_backend
+from social_core.backends.oauth import BaseOAuth2
+from social_core.exceptions import MissingBackend, AuthTokenError, AuthForbidden
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -115,30 +118,53 @@ def initialize_spotify_client():
 initialize_spotify_client()
 
 # ✅ 1. 用戶註冊 API
-@csrf_exempt
 @api_view(['POST'])
 def register_user(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    email = request.data.get('email')
+    try:
+        username = request.data.get('username')
+        password = request.data.get('password')
+        email = request.data.get('email')
 
-    if User.objects.filter(username=username).exists():
-        return Response({"error": "用戶名稱已存在"}, status=status.HTTP_400_BAD_REQUEST)
+        if not username or not password:
+            return Response({
+                "error": "用戶名和密碼為必填項"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-    user = User.objects.create_user(username=username, email=email, password=password)
-    
-    # 生成 JWT token
-    refresh = RefreshToken.for_user(user)
-    
-    return Response({
-        "message": "註冊成功！",
-        "token": str(refresh.access_token),
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email
-        }
-    }, status=status.HTTP_201_CREATED)
+        if User.objects.filter(username=username).exists():
+            return Response({
+                "error": "用戶名稱已存在"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if email and User.objects.filter(email=email).exists():
+            return Response({
+                "error": "電子郵件已被使用"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+        
+        # 生成 JWT token
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            "message": "註冊成功！",
+            "token": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email
+            }
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.error(f"註冊失敗: {str(e)}")
+        return Response({
+            "error": "註冊過程中發生錯誤"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ✅ 2. 自訂 JWT Token 回應 (添加額外用戶資訊)
@@ -434,3 +460,77 @@ def custom_500(request):
 @ensure_csrf_cookie
 def get_csrf_token(request):
     return Response({'detail': 'CSRF cookie set'})
+
+class PlaylistViewSet(viewsets.ModelViewSet):
+    serializer_class = PlaylistSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        if self.action == 'list' and not self.request.user.is_authenticated:
+            return Playlist.objects.filter(is_featured=True)
+        return Playlist.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+class WatchlistViewSet(viewsets.ModelViewSet):
+    serializer_class = WatchlistSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        if self.action == 'list' and not self.request.user.is_authenticated:
+            return Watchlist.objects.filter(is_featured=True)
+        return Watchlist.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+@api_view(['POST'])
+def google_login(request):
+    try:
+        # 獲取 Google 的 access token
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return Response({
+                'error': '缺少 access token'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 使用 social-auth-app-django 進行身份驗證
+        strategy = load_strategy(request)
+        backend = load_backend(strategy=strategy, name='google-oauth2', redirect_uri=None)
+
+        try:
+            user = backend.do_auth(access_token)
+        except AuthTokenError as e:
+            return Response({
+                'error': '無效的 token'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except AuthForbidden as e:
+            return Response({
+                'error': '帳號被禁用'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        if user:
+            # 生成 JWT token
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'token': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                }
+            })
+        else:
+            return Response({
+                'error': '無法驗證 Google 帳號'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        logger.error(f"Google 登入失敗: {str(e)}")
+        return Response({
+            'error': '登入過程中發生錯誤'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

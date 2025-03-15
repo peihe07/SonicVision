@@ -11,7 +11,10 @@ from .views import (
     get_preview_url,
     PostViewSet,
     CommentViewSet,
-    get_csrf_token
+    get_csrf_token,
+    PlaylistViewSet,
+    WatchlistViewSet,
+    google_login
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -19,10 +22,13 @@ from django.conf.urls import handler404, handler500
 router = DefaultRouter()
 router.register(r'posts', PostViewSet, basename='post')
 router.register(r'posts/(?P<post_pk>\d+)/comments', CommentViewSet, basename='comment')
+router.register(r'playlists', PlaylistViewSet, basename='playlist')
+router.register(r'watchlists', WatchlistViewSet, basename='watchlist')
 
 urlpatterns = [
     path('auth/register/', register_user, name='register'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/google/', google_login, name='google_login'),
     path('auth/profile/', user_profile, name='user_profile'),
     path('users/', user_list, name='user_list'),
     path('library/', UserLibraryView.as_view(), name='user_library'),

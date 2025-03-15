@@ -1,12 +1,23 @@
-Django>=4.2,<5.0
+# Django 和 REST framework
+Django>=5.0.3
 djangorestframework>=3.14.0
 django-cors-headers>=4.3.0
 djangorestframework-simplejwt>=5.3.0
+whitenoise>=6.6.0
+
+# 數據庫
 psycopg2-binary>=2.9.9
+
+# 工具
 python-dotenv>=1.0.0
 requests>=2.31.0
 Pillow>=10.0.0
 spotipy>=2.23.0
+
+# Google OAuth
+social-auth-app-django>=5.4.0
+google-auth>=2.28.1
+PyJWT>=2.8.0
 
 # 開發工具
 pytest>=7.4.0

@@ -1,8 +1,8 @@
 <template>
   <div class="watchlists-page">
     <div class="page-header">
-      <h1>我的片單</h1>
-      <button class="btn btn-primary" @click="showCreateModal = true">
+      <h1>推薦片單</h1>
+      <button class="btn btn-primary" @click="showCreateModal = true" v-if="isAuthenticated">
         <i class="fas fa-plus"></i> 創建新片單
       </button>
     </div>
@@ -25,7 +25,7 @@
           <p class="progress-text" v-if="watchlist.movieCount > 0">
             已觀看 {{ watchlist.watchedCount }}/{{ watchlist.movieCount }}
           </p>
-          <div class="watchlist-actions">
+          <div class="watchlist-actions" v-if="watchlist.canEdit">
             <button class="btn btn-icon" @click="editWatchlist(watchlist)">
               <i class="fas fa-edit"></i>
             </button>
@@ -39,9 +39,9 @@
 
     <div class="empty-state" v-else-if="!loading && !watchlists.length">
       <i class="fas fa-film"></i>
-      <h2>還沒有片單</h2>
-      <p>創建一個片單，開始收藏想看的電影吧！</p>
-      <button class="btn btn-primary" @click="showCreateModal = true">
+      <h2>暫無推薦片單</h2>
+      <p v-if="isAuthenticated">創建一個片單，開始收藏喜愛的電影吧！</p>
+      <button class="btn btn-primary" @click="showCreateModal = true" v-if="isAuthenticated">
         創建片單
       </button>
     </div>
@@ -142,14 +142,26 @@ export default {
       }
     }
   },
+  computed: {
+    isAuthenticated() {
+      return this.$store.state.auth.isAuthenticated
+    },
+    currentUser() {
+      return this.$store.state.auth.user?.username
+    }
+  },
   methods: {
     async fetchWatchlists() {
       try {
         this.loading = true
         const response = await watchlists.getAll()
-        this.watchlists = response.data
+        this.watchlists = response.data.map(watchlist => ({
+          ...watchlist,
+          canEdit: this.isAuthenticated && watchlist.owner === this.currentUser
+        }))
       } catch (err) {
-        console.error('Failed to fetch watchlists:', err)
+        console.error('獲取片單失敗:', err)
+        this.$toast.error('無法載入片單，請稍後再試')
       } finally {
         this.loading = false
       }

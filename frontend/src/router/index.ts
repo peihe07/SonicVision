@@ -81,6 +81,11 @@ const routes: Array<RouteRecordRaw> = [
             title: '忘記密碼',
             requiresAuth: false
         }
+    },
+    {
+        path: '/auth/callback',
+        name: 'auth-callback',
+        component: () => import('@/pages/AuthCallback.vue')
     }
 ];
 

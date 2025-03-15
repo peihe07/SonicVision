@@ -75,3 +75,38 @@ class Comment(models.Model):
         from django.core.exceptions import ValidationError
         if not self.content.strip():
             raise ValidationError("評論內容不能為空")
+
+class Playlist(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    cover = models.ImageField(upload_to='playlist_covers/', null=True, blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='playlists')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    song_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.owner.username}"
+
+class Watchlist(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    cover = models.ImageField(upload_to='watchlist_covers/', null=True, blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='watchlists')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    movie_count = models.IntegerField(default=0)
+    watched_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.owner.username}"
