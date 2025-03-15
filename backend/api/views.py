@@ -27,6 +27,7 @@ from social_core.backends.oauth import BaseOAuth2
 from social_core.exceptions import MissingBackend, AuthTokenError, AuthForbidden
 from django.db import models
 from django.conf import settings
+import jwt
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -107,17 +108,17 @@ def register_user(request):
 
         if not username or not password:
             return Response({
-                "error": "用戶名和密碼為必填項"
+                "message": "用戶名和密碼為必填項"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(username=username).exists():
             return Response({
-                "error": "用戶名稱已存在"
+                "message": "用戶名稱已存在"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if email and User.objects.filter(email=email).exists():
             return Response({
-                "error": "電子郵件已被使用"
+                "message": "電子郵件已被使用"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(
@@ -143,7 +144,7 @@ def register_user(request):
     except Exception as e:
         logger.error(f"註冊失敗: {str(e)}")
         return Response({
-            "error": "註冊過程中發生錯誤"
+            "message": "註冊過程中發生錯誤"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -884,3 +885,55 @@ def tmdb_movie_detail(request, movie_id):
             {"error": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['POST'])
+def set_refresh_token(request):
+    try:
+        token = request.data.get('token')
+        if not token:
+            return Response({'message': '未提供 token'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 設置 httpOnly cookie
+        response = Response({'message': 'refresh token 設置成功'})
+        response.set_cookie(
+            'refresh_token',
+            token,
+            httponly=True,
+            secure=True,  # 只在 HTTPS 下發送
+            samesite='Strict',  # 防止 CSRF
+            max_age=60*60*24*30  # 30 天過期
+        )
+        return response
+    except Exception as e:
+        return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def clear_refresh_token(request):
+    response = Response({'message': 'refresh token 已清除'})
+    response.delete_cookie('refresh_token')
+    return response
+
+@api_view(['POST'])
+def refresh_token(request):
+    try:
+        refresh_token = request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response({'message': '無效的 refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        # 驗證 refresh token
+        try:
+            payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=['HS256'])
+            user = User.objects.get(id=payload['user_id'])
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, User.DoesNotExist):
+            response = Response({'message': 'refresh token 已過期或無效'}, status=status.HTTP_401_UNAUTHORIZED)
+            response.delete_cookie('refresh_token')
+            return response
+            
+        # 生成新的 access token
+        access_token = generate_access_token(user)
+        return Response({
+            'message': 'token 刷新成功',
+            'access': access_token
+        })
+    except Exception as e:
+        return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

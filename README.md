@@ -1,6 +1,32 @@
 # SonicVision
 
-一個現代化的音樂視覺化應用程式，使用 Django + Vue.js 構建。整合 Spotify API，提供實時音樂視覺化體驗。
+一個現代化的音樂和電影整合平台，使用 Django + Vue.js 構建。整合 Spotify API 和 TMDB API，提供音樂和電影的搜索、收藏和社交功能。
+
+## 主要功能
+
+### 音樂功能
+- Spotify 音樂搜索和預覽
+- 音樂播放列表管理
+- 音樂推薦系統
+- 即時音樂分享
+
+### 電影功能
+- TMDB 電影搜索
+- 觀看清單管理
+- 電影推薦系統
+- 電影評分和評論
+
+### 社交功能
+- 用戶個人資料
+- 社群互動
+- 通知中心
+- 好友系統
+
+### 整合功能
+- Google 帳號登入
+- Spotify 連結
+- YouTube 影片連結
+- 個人化推薦
 
 ## 技術棧
 
@@ -11,6 +37,8 @@
 - JWT 認證
 - PostgreSQL (生產環境)
 - Spotify API 整合
+- TMDB API 整合
+- Google OAuth2
 - WebSocket 支援
 
 ### 前端

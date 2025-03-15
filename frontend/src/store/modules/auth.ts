@@ -18,41 +18,25 @@ interface GoogleLoginResponse {
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         currentUser: null as ApiUser | null,
-        token: localStorage.getItem('access_token'),
-        refreshToken: localStorage.getItem('refresh_token'),
+        isAuthenticated: false,
         error: null as string | null
     }),
-
-    getters: {
-        isAuthenticated(): boolean {
-            return !!this.token && !!this.currentUser;
-        }
-    },
 
     actions: {
         setUser(user: ApiUser | null) {
             this.currentUser = user;
-        },
-
-        setToken(token: string | null) {
-            this.token = token;
-            if (token) {
-                localStorage.setItem('access_token', token);
-            } else {
-                localStorage.removeItem('access_token');
-            }
+            this.isAuthenticated = !!user;
         },
 
         async login(credentials: LoginCredentials) {
             this.error = null;
             try {
                 const response = await authAPI.login(credentials);
-                const { access, refresh } = response.data;
-                this.setToken(access);
-                localStorage.setItem('refresh_token', refresh);
-                await this.fetchUserProfile();
+                if (response.data.user) {
+                    this.setUser(response.data.user);
+                }
             } catch (error) {
-                this.error = '登入失敗';
+                this.error = error instanceof Error ? error.message : '登入失敗';
                 throw error;
             }
         },
@@ -63,9 +47,29 @@ export const useAuthStore = defineStore('auth', {
             } catch (error) {
                 console.error('登出時發生錯誤:', error);
             } finally {
-                this.setToken(null);
                 this.setUser(null);
-                localStorage.removeItem('refresh_token');
+            }
+        },
+
+        async register(userData: { username: string; email: string; password: string }) {
+            this.error = null;
+            try {
+                const response = await authAPI.register(userData);
+                if (response.data.user) {
+                    this.setUser(response.data.user);
+                }
+            } catch (error) {
+                this.error = error instanceof Error ? error.message : '註冊失敗';
+                throw error;
+            }
+        },
+
+        async checkAuth() {
+            try {
+                const user = await authAPI.getProfile();
+                this.setUser(user);
+            } catch (error) {
+                this.setUser(null);
             }
         },
 
@@ -74,7 +78,7 @@ export const useAuthStore = defineStore('auth', {
                 const user = await authAPI.getProfile();
                 this.setUser(user);
             } catch (error) {
-                this.setToken(null);
+                this.setUser(null);
                 throw error;
             }
         },
@@ -90,27 +94,11 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
-        async register(userData: { username: string; email: string; password: string }) {
-            this.error = null;
-            try {
-                const response = await authAPI.register(userData);
-                this.setToken(response.data.access);
-                this.setUser(response.data.user);
-            } catch (error) {
-                this.error = '註冊失敗';
-                throw error;
-            }
-        },
-
         async googleLogin(code: string) {
             this.error = null;
             try {
                 const response = await authAPI.googleLogin(code);
                 const data = response.data as GoogleLoginResponse;
-                this.setToken(data.token);
-                if (data.refresh) {
-                    localStorage.setItem('refresh_token', data.refresh);
-                }
                 this.setUser(data.user);
             } catch (error) {
                 this.error = '使用 Google 登入失敗';
@@ -152,7 +140,6 @@ export const useAuthStore = defineStore('auth', {
             this.error = null;
             try {
                 await authAPI.deactivateAccount();
-                this.setToken(null);
                 this.setUser(null);
             } catch (error) {
                 this.error = '停用帳號失敗';
@@ -164,22 +151,10 @@ export const useAuthStore = defineStore('auth', {
             this.error = null;
             try {
                 await authAPI.deleteAccount();
-                this.setToken(null);
                 this.setUser(null);
             } catch (error) {
                 this.error = '刪除帳號失敗';
                 throw error;
-            }
-        },
-
-        async checkAuth() {
-            if (this.token) {
-                try {
-                    await this.fetchUserProfile();
-                } catch (error) {
-                    this.setToken(null);
-                    this.setUser(null);
-                }
             }
         }
     }

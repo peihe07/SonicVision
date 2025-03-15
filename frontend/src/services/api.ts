@@ -3,17 +3,81 @@ import type { LoginCredentials, NotificationSettings, PasswordUpdateData, Privac
 import type { AxiosError } from 'axios';
 import axios from 'axios';
 
+// 定義錯誤響應類型
+interface ErrorResponse {
+    message: string;
+    [key: string]: string | number | boolean | null | undefined;
+}
+
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
 
 // 創建 axios 實例
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
+        'Content-Type': 'application/json'
     },
-    withCredentials: true,  // 允許跨域請求攜帶 cookie
+    withCredentials: true  // 啟用跨域 cookie
 });
+
+// Token 管理工具
+const tokenManager = {
+    setAccessToken(token: string) {
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    },
+
+    setRefreshToken(token: string) {
+        // 通過 API 將 refresh token 存為 httpOnly cookie
+        return apiClient.post('/auth/set-refresh-token/', { token });
+    },
+
+    clearTokens() {
+        delete apiClient.defaults.headers.common['Authorization'];
+        return apiClient.post('/auth/clear-refresh-token/');
+    }
+};
+
+// 請求攔截器
+apiClient.interceptors.request.use(
+    (config) => {
+        // 不需要在請求攔截器中處理 token，因為已經在 defaults.headers 中設置
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// 響應攔截器
+apiClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // 如果是 401 錯誤且不是重試的請求
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            try {
+                // 使用 httpOnly cookie 中的 refresh token 自動刷新
+                const response = await apiClient.post('/token/refresh/');
+                const { access } = response.data;
+
+                // 更新 access token
+                tokenManager.setAccessToken(access);
+
+                // 重試原始請求
+                return apiClient(originalRequest);
+            } catch (refreshError) {
+                // 刷新失敗，清除認證狀態
+                await tokenManager.clearTokens();
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 // 獲取 CSRF Token
 const getCsrfToken = () => {
@@ -39,11 +103,12 @@ apiClient.interceptors.request.use(
         if (config.method !== 'get') {
             try {
                 // 先發送一個 GET 請求來獲取 CSRF token
-                await axios.get(`${API_BASE_URL}/csrf-token/`, {
+                await axios.get(`${API_BASE_URL}/auth/csrf-token/`, {
                     withCredentials: true
                 });
             } catch (error) {
                 console.warn('獲取 CSRF token 失敗:', error);
+                // 不中斷請求，讓後端處理 CSRF 驗證
             }
         }
 
@@ -51,12 +116,6 @@ apiClient.interceptors.request.use(
         const token = getCsrfToken();
         if (token) {
             config.headers['X-CSRFToken'] = token;
-        }
-
-        // 添加 JWT Token
-        const jwtToken = localStorage.getItem('token');
-        if (jwtToken) {
-            config.headers['Authorization'] = `Bearer ${jwtToken}`;
         }
 
         return config;
@@ -155,50 +214,56 @@ export const authAPI = {
     login: async (credentials: LoginCredentials) => {
         try {
             const response = await apiClient.post('/token/', credentials);
-            // 保存 token
+
             if (response.data.access) {
-                localStorage.setItem('token', response.data.access);
+                tokenManager.setAccessToken(response.data.access);
             }
             if (response.data.refresh) {
-                localStorage.setItem('refreshToken', response.data.refresh);
+                await tokenManager.setRefreshToken(response.data.refresh);
             }
             return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 401) {
                 throw new Error('用戶名或密碼錯誤');
             }
-            throw error;
+            const errorMessage = ((error as AxiosError)?.response?.data as ErrorResponse)?.message || '登入失敗，請稍後再試';
+            throw new Error(errorMessage);
         }
     },
     googleLogin: async (accessToken: string) => {
         try {
             const response = await apiClient.post('/auth/google/', { access_token: accessToken });
-            // 保存 token
+
             if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
+                tokenManager.setAccessToken(response.data.token);
             }
             if (response.data.refresh) {
-                localStorage.setItem('refreshToken', response.data.refresh);
+                await tokenManager.setRefreshToken(response.data.refresh);
             }
             return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 400) {
                 throw new Error('Google 登入失敗：無效的 token');
             }
-            throw error;
+            const errorMessage = ((error as AxiosError)?.response?.data as ErrorResponse)?.message || 'Google 登入失敗，請稍後再試';
+            throw new Error(errorMessage);
         }
     },
     register: async (userData: RegisterData) => {
         try {
             const response = await apiClient.post('/auth/register/', userData);
-            // 保存 token
-            if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
+
+            if (response.data.access) {
+                tokenManager.setAccessToken(response.data.access);
+            }
+            if (response.data.refresh) {
+                await tokenManager.setRefreshToken(response.data.refresh);
             }
             return response;
         } catch (error: unknown) {
             if ((error as AxiosError)?.response?.status === 400) {
-                throw new Error('註冊失敗：用戶名已存在');
+                const errorMessage = ((error as AxiosError)?.response?.data as ErrorResponse)?.message || '註冊失敗：請檢查輸入資料';
+                throw new Error(errorMessage);
             }
             throw error;
         }
@@ -210,7 +275,13 @@ export const authAPI = {
         return apiClient.post('/auth/forgot-password/', { email });
     },
     logout: async () => {
-        return apiClient.post('/auth/logout/');
+        try {
+            await tokenManager.clearTokens();
+            return await apiClient.post('/auth/logout/');
+        } catch (error) {
+            console.error('登出失敗:', error);
+            throw error;
+        }
     },
     getProfile: async (): Promise<User> => {
         const response = await apiClient.get('/auth/profile/');

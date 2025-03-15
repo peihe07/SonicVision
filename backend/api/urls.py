@@ -17,7 +17,10 @@ from .views import (
     google_login,
     spotify_featured_playlists,
     tmdb_featured_lists,
-    tmdb_movie_detail
+    tmdb_movie_detail,
+    set_refresh_token,
+    clear_refresh_token,
+    refresh_token
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -30,7 +33,11 @@ router.register(r'watchlists', WatchlistViewSet, basename='watchlist')
 
 urlpatterns = [
     path('auth/register/', register_user, name='register'),
+    path('auth/csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', refresh_token, name='token_refresh'),
+    path('auth/set-refresh-token/', set_refresh_token, name='set_refresh_token'),
+    path('auth/clear-refresh-token/', clear_refresh_token, name='clear_refresh_token'),
     path('auth/google/', google_login, name='google_login'),
     path('auth/profile/', user_profile, name='user_profile'),
     path('users/', user_list, name='user_list'),
@@ -41,7 +48,6 @@ urlpatterns = [
     path('spotify/featured-playlists/', spotify_featured_playlists, name='spotify_featured_playlists'),
     path('tmdb/featured-lists/', tmdb_featured_lists, name='tmdb_featured_lists'),
     path('tmdb/movies/<int:movie_id>/', tmdb_movie_detail, name='tmdb_movie_detail'),
-    path('csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('', include(router.urls)),
 ]
 
