@@ -13,14 +13,18 @@ module.exports = defineConfig({
       '^/api/spotify': {
         target: 'https://api.spotify.com/v1',
         changeOrigin: true,
-        pathRewrite: { '^/api/spotify': '' }
+        pathRewrite: { '^/api/spotify': '' },
+        onProxyReq: (proxyReq) => {
+          proxyReq.setHeader('Origin', 'http://localhost:8083');
+        }
       },
       '^/api/tmdb': {
         target: 'https://api.themoviedb.org/3',
         changeOrigin: true,
         pathRewrite: { '^/api/tmdb': '' },
-        headers: {
-          'Authorization': `Bearer ${process.env.VUE_APP_TMDB_ACCESS_TOKEN}`
+        onProxyReq: (proxyReq) => {
+          proxyReq.setHeader('Authorization', `Bearer ${process.env.VUE_APP_TMDB_ACCESS_TOKEN}`);
+          proxyReq.setHeader('Origin', 'http://localhost:8083');
         }
       }
     },
@@ -56,7 +60,10 @@ module.exports = defineConfig({
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name(module) {
-              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
+              if (!module.context) return 'vendor';
+              const matches = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/);
+              if (!matches) return 'vendor';
+              const packageName = matches[1];
               return `vendor.${packageName.replace('@', '')}`;
             },
             priority: 10

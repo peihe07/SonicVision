@@ -1,6 +1,10 @@
 from pathlib import Path
 import os
 import logging.config
+from dotenv import load_dotenv
+
+# 載入環境變數
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -275,3 +279,8 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
+
+# TMDB API 設置
+TMDB_API_KEY = os.getenv('TMDB_API_KEY')
+if not TMDB_API_KEY:
+    raise ValueError('TMDB_API_KEY 環境變數未設置')

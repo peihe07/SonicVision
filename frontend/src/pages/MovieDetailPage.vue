@@ -1,24 +1,29 @@
 <template>
     <div class="movie-detail" v-if="movie">
-        <div class="movie-header" :style="{ backgroundImage: `url(${getImageUrl(movie.poster_path)})` }">
+        <div class="movie-header" :style="{ backgroundImage: getBackgroundImage(movie) }">
             <div class="overlay">
                 <div class="content">
-                    <img :src="getImageUrl(movie.poster_path, 'w500')" :alt="movie.title" class="poster">
+                    <img :src="movie.poster_path" :alt="movie.title" class="poster">
                     <div class="info">
                         <h1>{{ movie.title }}</h1>
+                        <h2 v-if="movie.original_title !== movie.title" class="original-title">
+                            {{ movie.original_title }}
+                        </h2>
                         <div class="meta">
                             <span class="release-date">{{ formatDate(movie.release_date) }}</span>
-                            <span class="runtime">{{ formatRuntime(movie.runtime) }}</span>
+                            <span class="runtime" v-if="movie.runtime">{{ formatRuntime(movie.runtime) }}</span>
                             <span class="rating">
                                 <i class="fas fa-star"></i>
-                                {{ movie.vote_average.toFixed(1) }}
+                                {{ movie.vote_average }}
+                                <span class="vote-count">({{ movie.vote_count }}票)</span>
                             </span>
                         </div>
                         <div class="genres">
-                            <span v-for="genre in movie.genres" :key="genre.id" class="genre-tag">
-                                {{ genre.name }}
+                            <span v-for="genre in movie.genres" :key="genre" class="genre-tag">
+                                {{ genre }}
                             </span>
                         </div>
+                        <p class="tagline" v-if="movie.tagline">{{ movie.tagline }}</p>
                         <p class="overview">{{ movie.overview }}</p>
                     </div>
                 </div>
@@ -26,13 +31,27 @@
         </div>
 
         <div class="movie-content">
-            <section class="cast-section" v-if="movie.credits?.cast?.length">
+            <!-- 預告片區域 -->
+            <section class="videos-section" v-if="movie.videos?.length">
+                <h2>預告片</h2>
+                <div class="videos-grid">
+                    <div v-for="video in movie.videos" :key="video.id" class="video-card">
+                        <a :href="getVideoUrl(video)" target="_blank" rel="noopener noreferrer">
+                            <img :src="getYouTubeThumbnail(video.key)" :alt="video.type">
+                            <div class="play-icon">▶</div>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 演員區域 -->
+            <section class="cast-section" v-if="movie.cast?.length">
                 <h2>主要演員</h2>
                 <div class="cast-grid">
-                    <div v-for="actor in movie.credits.cast.slice(0, 6)" :key="actor.id" class="cast-card">
-                        <a :href="getTMDBPersonUrl(actor.id)" target="_blank" rel="noopener noreferrer" class="actor-link">
+                    <div v-for="actor in movie.cast" :key="actor.id" class="cast-card">
+                        <a :href="`https://www.themoviedb.org/person/${actor.id}`" target="_blank" rel="noopener noreferrer">
                             <img 
-                                :src="actor.profile_path ? getImageUrl(actor.profile_path, 'w185') : '/images/no-profile.png'"
+                                :src="actor.profile_path || '/images/no-profile.png'"
                                 :alt="actor.name"
                                 class="actor-photo"
                             >
@@ -45,20 +64,7 @@
                 </div>
             </section>
 
-            <section class="crew-section">
-                <h2>製作團隊</h2>
-                <div class="crew-info">
-                    <div class="crew-member" v-if="director">
-                        <h3>導演</h3>
-                        <p>{{ director.name }}</p>
-                    </div>
-                    <div class="crew-member" v-for="role in importantCrew" :key="role.id">
-                        <h3>{{ role.job }}</h3>
-                        <p>{{ role.name }}</p>
-                    </div>
-                </div>
-            </section>
-
+            <!-- 製作資訊 -->
             <section class="production-info">
                 <h2>製作資訊</h2>
                 <div class="production-grid">
@@ -70,9 +76,32 @@
                         <h3>票房</h3>
                         <p>{{ formatCurrency(movie.revenue) }}</p>
                     </div>
-                    <div class="info-item" v-if="movie.production_companies?.length">
-                        <h3>製作公司</h3>
-                        <p>{{ movie.production_companies.map(company => company.name).join(', ') }}</p>
+                    <div class="info-item" v-if="movie.production_countries?.length">
+                        <h3>製作國家</h3>
+                        <p>{{ movie.production_countries.join(', ') }}</p>
+                    </div>
+                    <div class="info-item" v-if="movie.spoken_languages?.length">
+                        <h3>語言</h3>
+                        <p>{{ movie.spoken_languages.join(', ') }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 相似電影 -->
+            <section class="similar-movies" v-if="movie.similar_movies?.length">
+                <h2>相似電影</h2>
+                <div class="similar-movies-grid">
+                    <div v-for="similar in movie.similar_movies" :key="similar.id" class="similar-movie-card">
+                        <div class="movie-link" @click="navigateToMovie(similar.id)">
+                            <img :src="similar.poster_path" :alt="similar.title">
+                            <div class="similar-movie-info">
+                                <h3>{{ similar.title }}</h3>
+                                <span class="rating">
+                                    <i class="fas fa-star"></i>
+                                    {{ similar.vote_average.toFixed(1) }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -89,31 +118,66 @@
 </template>
 
 <script lang="ts">
-import { getImageUrl, getMovieDetails } from '@/services/tmdb';
-import type { TMDBMovieDetail } from '@/types';
-import { computed, defineComponent, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import axios from 'axios';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+interface Movie {
+    id: number;
+    title: string;
+    original_title?: string;
+    overview: string;
+    poster_path: string;
+    backdrop_path: string;
+    vote_average: number;
+    vote_count: number;
+    release_date: string;
+    release_year?: string;
+    runtime?: number;
+    genres: string[];
+    production_countries: string[];
+    spoken_languages: string[];
+    budget?: number;
+    revenue?: number;
+    cast: Array<{
+        id: number;
+        name: string;
+        character: string;
+        profile_path: string;
+    }>;
+    videos: Array<{
+        id: string;
+        key: string;
+        site: string;
+        type: string;
+    }>;
+    similar_movies: Array<{
+        id: number;
+        title: string;
+        poster_path: string;
+        vote_average: number;
+    }>;
+    status?: string;
+    tagline?: string;
+    popularity?: number;
+}
 
 export default defineComponent({
     name: 'MovieDetailPage',
     setup() {
         const route = useRoute();
-        const movie = ref<TMDBMovieDetail | null>(null);
+        const router = useRouter();
+        const movie = ref<Movie | null>(null);
         const loading = ref(true);
         const error = ref<string | null>(null);
 
         const director = computed(() => {
-            return movie.value?.credits?.crew.find(member => member.job === 'Director');
-        });
-
-        const importantCrew = computed(() => {
-            return movie.value?.credits?.crew.filter(member => 
-                ['Producer', 'Screenplay', 'Original Music Composer'].includes(member.job)
-            ) || [];
+            if (!movie.value?.cast) return null;
+            return movie.value.cast[0];
         });
 
         const fetchMovieData = async () => {
-            const movieId = Number(route.params.id);
+            const movieId = route.params.id;
             if (!movieId) {
                 error.value = '無效的電影 ID';
                 return;
@@ -122,7 +186,11 @@ export default defineComponent({
             try {
                 loading.value = true;
                 error.value = null;
-                movie.value = await getMovieDetails(movieId);
+                const response = await axios.get(`/tmdb/movies/${movieId}/`);
+                if (!response.data) {
+                    throw new Error('無效的響應數據');
+                }
+                movie.value = response.data;
             } catch (err) {
                 console.error('獲取電影詳情失敗:', err);
                 error.value = '無法載入電影詳情，請稍後再試';
@@ -157,9 +225,38 @@ export default defineComponent({
             }).format(amount);
         };
 
-        const getTMDBPersonUrl = (personId: number) => {
-            return `https://www.themoviedb.org/person/${personId}`;
+        const getImageUrl = (path: string | null): string => {
+            if (!path) return '/images/no-poster.png';
+            return path;
         };
+
+        const getBackgroundImage = (movie: Movie): string => {
+            const imageUrl = movie.backdrop_path || movie.poster_path || '';
+            return `url(${imageUrl})`;
+        };
+
+        const getYouTubeThumbnail = (videoKey: string): string => {
+            return `https://img.youtube.com/vi/${videoKey}/mqdefault.jpg`;
+        };
+
+        const getVideoUrl = (video: { key: string; type: string }): string => {
+            return `https://www.youtube.com/watch?v=${video.key}`;
+        };
+
+        const navigateToMovie = async (movieId: number) => {
+            await router.push(`/movie/${movieId}`);
+            await fetchMovieData();
+        };
+
+        // 監聽路由參數變化
+        watch(
+            () => route.params.id,
+            async (newId) => {
+                if (newId) {
+                    await fetchMovieData();
+                }
+            }
+        );
 
         onMounted(fetchMovieData);
 
@@ -168,13 +265,15 @@ export default defineComponent({
             loading,
             error,
             director,
-            importantCrew,
             getImageUrl,
+            getBackgroundImage,
+            getYouTubeThumbnail,
             formatDate,
             formatRuntime,
             formatCurrency,
+            getVideoUrl,
             fetchMovieData,
-            getTMDBPersonUrl
+            navigateToMovie
         };
     }
 });
@@ -250,7 +349,7 @@ export default defineComponent({
 }
 
 .genre-tag {
-    background: rgba(255,255,255,0.2);
+    background-color: rgba(255,255,255,0.2);
     padding: 0.3rem 0.8rem;
     border-radius: 20px;
     font-size: 0.9rem;
@@ -270,12 +369,51 @@ export default defineComponent({
     z-index: 1;
 }
 
-.cast-section, .crew-section, .production-info {
-    background: white;
-    border-radius: 8px;
+.videos-section {
     padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.videos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.video-card {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.video-card img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+}
+
+.play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cast-section {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 h2 {
@@ -286,73 +424,137 @@ h2 {
 
 .cast-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .cast-card {
-    background: #f8f9fa;
+    background: white;
     border-radius: 8px;
     overflow: hidden;
-    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.cast-card:hover {
-    transform: translateY(-5px);
+.cast-card a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.cast-card a:hover {
+    transform: translateY(-4px);
 }
 
 .actor-photo {
     width: 100%;
-    height: 300px;
+    aspect-ratio: 2/3;
     object-fit: cover;
 }
 
 .actor-info {
-    padding: 1rem;
+    padding: 0.5rem;
 }
 
 .actor-info h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #2c3e50;
+    font-size: 1rem;
+    margin-bottom: 0.3rem;
 }
 
 .actor-info p {
-    margin: 0.5rem 0 0;
-    color: #666;
     font-size: 0.9rem;
-}
-
-.crew-info {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-.crew-member h3 {
-    font-size: 1.1rem;
-    color: #2c3e50;
-    margin-bottom: 0.5rem;
-}
-
-.crew-member p {
     color: #666;
+}
+
+.production-info {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .production-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.info-item {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .info-item h3 {
-    font-size: 1.1rem;
-    color: #2c3e50;
+    font-size: 1rem;
+    color: #666;
     margin-bottom: 0.5rem;
 }
 
 .info-item p {
     color: #666;
+}
+
+.similar-movies {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.similar-movies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.similar-movie-card {
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.similar-movie-card:hover {
+    transform: scale(1.05);
+}
+
+.similar-movie-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+}
+
+.similar-movie-info {
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.8);
+}
+
+.similar-movie-info h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: white;
+}
+
+.original-title {
+    font-size: 1.2rem;
+    color: #ccc;
+    margin-bottom: 1rem;
+}
+
+.tagline {
+    font-style: italic;
+    color: #ddd;
+    margin-bottom: 1rem;
+}
+
+.vote-count {
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-left: 0.5rem;
 }
 
 .loading, .error {
@@ -420,22 +622,20 @@ h2 {
     }
 }
 
-.actor-link {
+.movie-link {
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    height: 100%;
     text-decoration: none;
     color: inherit;
-    display: block;
-    height: 100%;
 }
 
-.actor-link:hover .actor-photo {
-    opacity: 0.8;
+.similar-movie-card .movie-link {
+    transition: transform 0.2s;
 }
 
-.actor-link:hover .actor-info h3 {
-    color: #3498db;
-}
-
-.actor-photo {
-    transition: opacity 0.3s ease;
+.similar-movie-card:hover .movie-link {
+    transform: scale(1.05);
 }
 </style> 

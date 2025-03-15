@@ -162,6 +162,7 @@ export default defineComponent({
     const newPost = ref<NewPostType>({
       title: '',
       content: '',
+      category: '討論',
       media_url: undefined
     });
 
@@ -194,6 +195,8 @@ export default defineComponent({
     });
 
     const filteredPosts = computed(() => {
+      if (!posts.value) return [];
+      
       let result = [...posts.value];
 
       if (selectedCategory.value !== '全部') {
@@ -276,6 +279,7 @@ export default defineComponent({
       newPost.value = {
         title: '',
         content: '',
+        category: '討論',
         media_url: undefined
       };
     };

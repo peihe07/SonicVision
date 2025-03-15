@@ -2,6 +2,8 @@ import DiscoverPage from '@/pages/DiscoverPage.vue';
 import HomePage from '@/pages/HomePage.vue';
 import MovieDetailPage from '@/pages/MovieDetailPage.vue';
 import MusicDetailPage from '@/pages/MusicDetailPage.vue';
+import SpotifyPlaylistsPage from '@/pages/SpotifyPlaylistsPage.vue';
+import TmdbListsPage from '@/pages/TmdbListsPage.vue';
 import { useAuthStore } from '@/store/modules/auth';
 import type { RouteRecordRaw } from 'vue-router';
 import { createRouter, createWebHistory } from 'vue-router';
@@ -32,22 +34,20 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/playlists',
         name: 'playlists',
-        component: () => import('@/pages/PlaylistsPage.vue')
+        redirect: '/spotify-playlists'
     },
     {
-        path: '/playlist/:id',
-        name: 'playlist-detail',
-        component: () => import('@/pages/PlaylistDetailPage.vue')
+        path: '/playlists/:id',
+        redirect: '/spotify-playlists'
     },
     {
         path: '/watchlists',
         name: 'watchlists',
-        component: () => import('@/pages/WatchlistsPage.vue')
+        redirect: '/tmdb-lists'
     },
     {
-        path: '/watchlist/:id',
-        name: 'watchlist-detail',
-        component: () => import('@/pages/WatchlistDetailPage.vue')
+        path: '/watchlists/:id',
+        redirect: '/tmdb-lists'
     },
     {
         path: '/community',
@@ -70,30 +70,20 @@ const routes: Array<RouteRecordRaw> = [
         component: MusicDetailPage
     },
     {
-        path: '/profile',
-        name: 'profile',
-        component: () => import('@/pages/ProfilePage.vue'),
-        meta: { requiresAuth: true }
-    },
-    {
-        path: '/settings',
-        name: 'settings',
-        component: () => import('@/pages/SettingsPage.vue'),
-        meta: { requiresAuth: true }
-    },
-    {
-        path: '/forgot-password',
-        name: 'forgot-password',
-        component: () => import('@/pages/ForgotPasswordPage.vue'),
+        path: '/spotify-playlists',
+        name: 'spotify-playlists',
+        component: SpotifyPlaylistsPage,
         meta: {
-            title: '忘記密碼',
-            requiresAuth: false
+            title: 'Spotify 推薦歌單'
         }
     },
     {
-        path: '/auth/callback',
-        name: 'auth-callback',
-        component: () => import('@/pages/AuthCallback.vue')
+        path: '/tmdb-lists',
+        name: 'tmdb-lists',
+        component: TmdbListsPage,
+        meta: {
+            title: 'TMDB 推薦片單'
+        }
     }
 ];
 

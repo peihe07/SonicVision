@@ -25,6 +25,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from social_django.utils import load_strategy, load_backend
 from social_core.backends.oauth import BaseOAuth2
 from social_core.exceptions import MissingBackend, AuthTokenError, AuthForbidden
+from django.db import models
+from django.conf import settings
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -463,24 +465,40 @@ def get_csrf_token(request):
 
 class PlaylistViewSet(viewsets.ModelViewSet):
     serializer_class = PlaylistSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]  # 允許所有用戶訪問
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated()]  # 創建、更新和刪除需要登入
+        return [permissions.AllowAny()]  # 其他操作允許所有人
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
             return Playlist.objects.filter(is_public=True)
-        return Playlist.objects.filter(owner=self.request.user)
+        return Playlist.objects.filter(
+            models.Q(owner=self.request.user) |
+            models.Q(is_public=True)
+        )
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
 class WatchlistViewSet(viewsets.ModelViewSet):
     serializer_class = WatchlistSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]  # 允許所有用戶訪問
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated()]  # 創建、更新和刪除需要登入
+        return [permissions.AllowAny()]  # 其他操作允許所有人
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
             return Watchlist.objects.filter(is_public=True)
-        return Watchlist.objects.filter(owner=self.request.user)
+        return Watchlist.objects.filter(
+            models.Q(owner=self.request.user) |
+            models.Q(is_public=True)
+        )
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -534,3 +552,401 @@ def google_login(request):
         return Response({
             'error': '登入過程中發生錯誤'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def spotify_featured_playlists(request):
+    """獲取 Spotify 推薦歌單"""
+    global spotify
+    
+    # 檢查並初始化 Spotify 客戶端
+    retry_count = 0
+    max_retries = 3
+    
+    while not spotify and retry_count < max_retries:
+        logger.info(f"嘗試初始化 Spotify 客戶端 (嘗試 {retry_count + 1}/{max_retries})")
+        if initialize_spotify_client():
+            break
+        retry_count += 1
+        if retry_count < max_retries:
+            time.sleep(1)
+    
+    if not spotify:
+        error_msg = "無法初始化 Spotify 客戶端"
+        logger.error(error_msg)
+        return Response(
+            {
+                "error": error_msg,
+                "details": "請確認 Spotify API 憑證是否正確"
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+    
+    try:
+        logger.info("獲取 Spotify 推薦歌單")
+        
+        # 獲取熱門歌手
+        results = spotify.search(
+            q='genre:mandopop',  # 搜尋華語流行音樂
+            type='artist',
+            market='TW',
+            limit=5
+        )
+        
+        if not results or 'artists' not in results:
+            raise Exception("無法獲取歌手資訊")
+            
+        # 獲取歌手的熱門歌單
+        playlists = []
+        for artist in results['artists']['items']:
+            try:
+                # 搜尋與歌手相關的歌單
+                artist_playlists = spotify.search(
+                    q=f"artist:{artist['name']}",
+                    type='playlist',
+                    market='TW',
+                    limit=4
+                )
+                
+                if artist_playlists and 'playlists' in artist_playlists:
+                    playlists.extend(artist_playlists['playlists']['items'])
+            except Exception as e:
+                logger.warning(f"獲取歌手 {artist['name']} 的歌單時發生錯誤: {str(e)}")
+                continue
+        
+        # 格式化回應
+        response_data = {
+            'playlists': {
+                'items': playlists[:20],  # 限制返回 20 個歌單
+                'total': len(playlists)
+            }
+        }
+        
+        logger.info(f"成功獲取推薦歌單，共 {len(playlists)} 個")
+        return Response(response_data)
+        
+    except spotipy.exceptions.SpotifyException as e:
+        error_msg = f"Spotify API 錯誤: {str(e)}"
+        logger.error(error_msg)
+        
+        if "unauthorized" in str(e).lower():
+            logger.info("嘗試重新初始化 Spotify 客戶端")
+            if initialize_spotify_client():
+                try:
+                    results = spotify.search(
+                        q='genre:mandopop',
+                        type='artist',
+                        market='TW',
+                        limit=5
+                    )
+                    
+                    playlists = []
+                    for artist in results['artists']['items']:
+                        artist_playlists = spotify.search(
+                            q=f"artist:{artist['name']}",
+                            type='playlist',
+                            market='TW',
+                            limit=4
+                        )
+                        if artist_playlists and 'playlists' in artist_playlists:
+                            playlists.extend(artist_playlists['playlists']['items'])
+                    
+                    response_data = {
+                        'playlists': {
+                            'items': playlists[:20],
+                            'total': len(playlists)
+                        }
+                    }
+                    return Response(response_data)
+                except Exception as retry_error:
+                    error_msg = f"重試獲取歌單失敗: {str(retry_error)}"
+                    logger.error(error_msg)
+                    return Response(
+                        {"error": "獲取歌單失敗", "details": error_msg},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
+        
+        return Response(
+            {"error": "獲取歌單失敗", "details": error_msg},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        
+    except Exception as e:
+        error_msg = f"未預期的錯誤: {str(e)}"
+        logger.error(error_msg)
+        return Response(
+            {"error": "獲取歌單過程中發生錯誤", "details": error_msg},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+def tmdb_featured_lists(request):
+    """獲取 TMDB 全球評分最高的電影"""
+    if not settings.TMDB_API_KEY:
+        error_msg = "TMDB API Key 未設置"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    try:
+        logger.info("獲取 TMDB 全球評分最高的電影")
+        # 使用 top_rated 端點獲取全球評分最高的電影
+        response = requests.get(
+            'https://api.themoviedb.org/3/movie/top_rated',
+            params={
+                'api_key': settings.TMDB_API_KEY,
+                'language': 'zh-TW',  # 使用繁體中文
+                'page': 1,
+                'include_adult': False  # 排除成人內容
+            }
+        )
+        
+        if response.status_code == 401:
+            error_msg = "無效的 TMDB API Key"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            
+        if response.status_code == 404:
+            error_msg = "TMDB API 端點不存在"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        if response.status_code != 200:
+            error_msg = f"TMDB API 錯誤: {response.status_code}"
+            logger.error(f"{error_msg} - {response.text}")
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            
+        data = response.json()
+        
+        # 格式化電影資訊
+        formatted_movies = []
+        for movie in data.get('results', []):
+            # 獲取電影詳細資訊
+            movie_detail_response = requests.get(
+                f'https://api.themoviedb.org/3/movie/{movie["id"]}',
+                params={
+                    'api_key': settings.TMDB_API_KEY,
+                    'language': 'zh-TW',
+                    'append_to_response': 'credits,videos,similar'
+                }
+            )
+            
+            if movie_detail_response.status_code == 200:
+                movie_detail = movie_detail_response.json()
+                
+                # 處理演員資訊
+                cast = []
+                if 'credits' in movie_detail and 'cast' in movie_detail['credits']:
+                    cast = [{
+                        'id': actor['id'],
+                        'name': actor['name'],
+                        'character': actor['character'],
+                        'profile_path': f"https://image.tmdb.org/t/p/w185{actor['profile_path']}" if actor['profile_path'] else None
+                    } for actor in movie_detail['credits']['cast'][:5]]  # 只取前5位演員
+                
+                # 處理預告片
+                videos = []
+                if 'videos' in movie_detail and 'results' in movie_detail['videos']:
+                    videos = [{
+                        'id': video['id'],
+                        'key': video['key'],
+                        'site': video['site'],
+                        'type': video['type']
+                    } for video in movie_detail['videos']['results'] if video['site'] == 'YouTube'][:2]  # 只取前2個YouTube預告片
+                
+                # 處理類似電影
+                similar_movies = []
+                if 'similar' in movie_detail and 'results' in movie_detail['similar']:
+                    similar_movies = [{
+                        'id': similar['id'],
+                        'title': similar['title'],
+                        'poster_path': f"https://image.tmdb.org/t/p/w200{similar['poster_path']}" if similar['poster_path'] else None,
+                        'vote_average': round(float(similar['vote_average']), 1)
+                    } for similar in movie_detail['similar']['results'][:6]]  # 只取前6部類似電影
+                
+                formatted_movie = {
+                    'id': movie['id'],
+                    'title': movie['title'],
+                    'original_title': movie_detail.get('original_title'),
+                    'overview': movie['overview'],
+                    'poster_path': f"https://image.tmdb.org/t/p/w500{movie['poster_path']}" if movie['poster_path'] else None,
+                    'backdrop_path': f"https://image.tmdb.org/t/p/original{movie['backdrop_path']}" if movie['backdrop_path'] else None,
+                    'vote_average': round(float(movie['vote_average']), 1),
+                    'vote_count': movie['vote_count'],
+                    'release_date': movie['release_date'],
+                    'release_year': movie['release_date'][:4] if movie['release_date'] else None,
+                    'runtime': movie_detail.get('runtime'),
+                    'genres': [genre['name'] for genre in movie_detail.get('genres', [])],
+                    'production_countries': [country['name'] for country in movie_detail.get('production_countries', [])],
+                    'spoken_languages': [lang['name'] for lang in movie_detail.get('spoken_languages', [])],
+                    'budget': movie_detail.get('budget'),
+                    'revenue': movie_detail.get('revenue'),
+                    'cast': cast,
+                    'videos': videos,
+                    'similar_movies': similar_movies,
+                    'status': movie_detail.get('status'),
+                    'tagline': movie_detail.get('tagline'),
+                    'popularity': movie_detail.get('popularity')
+                }
+                formatted_movies.append(formatted_movie)
+        
+        # 按評分降序排序
+        formatted_movies.sort(key=lambda x: (x['vote_average'], x['vote_count']), reverse=True)
+        
+        response_data = {
+            'results': formatted_movies,
+            'total_results': len(formatted_movies)
+        }
+        
+        logger.info(f"成功獲取 TMDB 全球評分最高的電影，共 {len(formatted_movies)} 部")
+        return Response(response_data)
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"請求 TMDB API 時發生錯誤: {str(e)}"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        
+    except Exception as e:
+        error_msg = f"未預期的錯誤: {str(e)}"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+def tmdb_movie_detail(request, movie_id):
+    """獲取 TMDB 電影詳細信息"""
+    if not settings.TMDB_API_KEY:
+        error_msg = "TMDB API Key 未設置"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    try:
+        logger.info(f"獲取電影 ID {movie_id} 的詳細信息")
+        
+        # 獲取電影詳細信息
+        response = requests.get(
+            f'https://api.themoviedb.org/3/movie/{movie_id}',
+            params={
+                'api_key': settings.TMDB_API_KEY,
+                'language': 'zh-TW',
+                'append_to_response': 'credits,videos,similar'
+            }
+        )
+        
+        if response.status_code == 401:
+            error_msg = "無效的 TMDB API Key"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            
+        if response.status_code == 404:
+            error_msg = "找不到此電影"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        if response.status_code != 200:
+            error_msg = f"TMDB API 錯誤: {response.status_code}"
+            logger.error(f"{error_msg} - {response.text}")
+            return Response(
+                {"error": error_msg},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            
+        movie_detail = response.json()
+        
+        # 處理演員信息
+        cast = []
+        if 'credits' in movie_detail and 'cast' in movie_detail['credits']:
+            cast = [{
+                'id': actor['id'],
+                'name': actor['name'],
+                'character': actor['character'],
+                'profile_path': f"https://image.tmdb.org/t/p/w185{actor['profile_path']}" if actor['profile_path'] else None
+            } for actor in movie_detail['credits']['cast'][:5]]  # 只取前5位演員
+        
+        # 處理預告片
+        videos = []
+        if 'videos' in movie_detail and 'results' in movie_detail['videos']:
+            videos = [{
+                'id': video['id'],
+                'key': video['key'],
+                'site': video['site'],
+                'type': video['type']
+            } for video in movie_detail['videos']['results'] if video['site'] == 'YouTube'][:2]  # 只取前2個YouTube預告片
+        
+        # 處理類似電影
+        similar_movies = []
+        if 'similar' in movie_detail and 'results' in movie_detail['similar']:
+            similar_movies = [{
+                'id': similar['id'],
+                'title': similar['title'],
+                'poster_path': f"https://image.tmdb.org/t/p/w200{similar['poster_path']}" if similar['poster_path'] else None,
+                'vote_average': round(float(similar['vote_average']), 1)
+            } for similar in movie_detail['similar']['results'][:6]]  # 只取前6部類似電影
+        
+        formatted_movie = {
+            'id': movie_detail['id'],
+            'title': movie_detail['title'],
+            'original_title': movie_detail.get('original_title'),
+            'overview': movie_detail['overview'],
+            'poster_path': f"https://image.tmdb.org/t/p/w500{movie_detail['poster_path']}" if movie_detail['poster_path'] else None,
+            'backdrop_path': f"https://image.tmdb.org/t/p/original{movie_detail['backdrop_path']}" if movie_detail['backdrop_path'] else None,
+            'vote_average': round(float(movie_detail['vote_average']), 1),
+            'vote_count': movie_detail['vote_count'],
+            'release_date': movie_detail['release_date'],
+            'release_year': movie_detail['release_date'][:4] if movie_detail['release_date'] else None,
+            'runtime': movie_detail.get('runtime'),
+            'genres': [genre['name'] for genre in movie_detail.get('genres', [])],
+            'production_countries': [country['name'] for country in movie_detail.get('production_countries', [])],
+            'spoken_languages': [lang['name'] for lang in movie_detail.get('spoken_languages', [])],
+            'budget': movie_detail.get('budget'),
+            'revenue': movie_detail.get('revenue'),
+            'cast': cast,
+            'videos': videos,
+            'similar_movies': similar_movies,
+            'status': movie_detail.get('status'),
+            'tagline': movie_detail.get('tagline'),
+            'popularity': movie_detail.get('popularity')
+        }
+        
+        logger.info(f"成功獲取電影 {movie_id} 的詳細信息")
+        return Response(formatted_movie)
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"請求 TMDB API 時發生錯誤: {str(e)}"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        
+    except Exception as e:
+        error_msg = f"未預期的錯誤: {str(e)}"
+        logger.error(error_msg)
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

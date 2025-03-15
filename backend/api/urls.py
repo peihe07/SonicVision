@@ -14,7 +14,10 @@ from .views import (
     get_csrf_token,
     PlaylistViewSet,
     WatchlistViewSet,
-    google_login
+    google_login,
+    spotify_featured_playlists,
+    tmdb_featured_lists,
+    tmdb_movie_detail
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -35,6 +38,9 @@ urlpatterns = [
     path('protected/', protected_view, name='protected'),
     path('spotify/search/', spotify_search, name='spotify_search'),
     path('spotify/preview/<str:track_id>/', get_preview_url, name='get_preview_url'),
+    path('spotify/featured-playlists/', spotify_featured_playlists, name='spotify_featured_playlists'),
+    path('tmdb/featured-lists/', tmdb_featured_lists, name='tmdb_featured_lists'),
+    path('tmdb/movies/<int:movie_id>/', tmdb_movie_detail, name='tmdb_movie_detail'),
     path('csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('', include(router.urls)),
 ]
