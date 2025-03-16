@@ -31,26 +31,21 @@ frontend/
 ### 認證模組
 - 用戶註冊/登入
 - Google OAuth 整合
-- JWT 令牌管理
-- 用戶會話管理
+- JWT token管理
 
 ### 音樂模組
 - Spotify API 整合
 - 音樂搜索
-- 播放列表管理
-- 音樂播放器
+- 全球最新歌曲
 
 ### 電影模組
 - TMDB API 整合
 - 電影搜索
-- 觀看清單
-- 電影詳情頁
+- 即將上映電影列表
 
 ### 社交模組
 - 用戶資料
-- 好友系統
 - 通知中心
-- 即時聊天
 
 ## 開發指南
 
@@ -69,40 +64,3 @@ frontend/
    ```bash
    npm run build
    ```
-
-### 代碼規範
-- 使用 ESLint 和 Prettier
-- 遵循 Vue.js 風格指南
-- 使用 TypeScript 類型註解
-- 組件使用 Composition API
-
-### 測試
-- 單元測試：`npm run test:unit`
-- E2E 測試：`npm run test:e2e`
-- 覆蓋率報告：`npm run test:coverage`
-
-## 部署
-
-### 開發環境
-- 使用 Vite 開發服務器
-- 熱模塊替換 (HMR)
-- 源碼映射
-
-### 生產環境
-- 靜態資源優化
-- 代碼分割
-- 緩存策略
-- CDN 配置
-
-## 貢獻指南
-1. Fork 專案
-2. 創建特性分支
-3. 提交更改
-4. 推送到分支
-5. 創建 Pull Request
-
-## 注意事項
-- 確保 API 密鑰安全
-- 遵循版本控制規範
-- 及時更新依賴
-- 保持代碼覆蓋率
