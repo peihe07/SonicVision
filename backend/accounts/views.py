@@ -59,7 +59,7 @@ class GoogleAuthView(APIView):
                 return Response({'error': '未提供授權碼'}, 
                               status=status.HTTP_400_BAD_REQUEST)
 
-            # 使用授權碼換取訪問令牌
+            # 使用授權碼換取TOKEN
             token_url = 'https://oauth2.googleapis.com/token'
             token_data = {
                 'code': code,
@@ -71,13 +71,13 @@ class GoogleAuthView(APIView):
 
             token_response = requests.post(token_url, data=token_data)
             if not token_response.ok:
-                return Response({'error': '無法獲取訪問令牌'}, 
+                return Response({'error': '無法獲取訪問TOKEN'}, 
                               status=status.HTTP_400_BAD_REQUEST)
 
             token_data = token_response.json()
             access_token = token_data.get('access_token')
 
-            # 使用訪問令牌獲取用戶信息
+            # 使用TOKEN獲取用戶資料
             userinfo_url = 'https://www.googleapis.com/oauth2/v3/userinfo'
             userinfo_response = requests.get(
                 userinfo_url,
@@ -85,7 +85,7 @@ class GoogleAuthView(APIView):
             )
 
             if not userinfo_response.ok:
-                return Response({'error': '無法獲取用戶信息'}, 
+                return Response({'error': '無法獲取用戶資料'}, 
                               status=status.HTTP_400_BAD_REQUEST)
 
             userinfo = userinfo_response.json()
