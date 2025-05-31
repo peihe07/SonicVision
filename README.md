@@ -1,5 +1,7 @@
 # SonicVision
 
+![SonicVision](https://github.com/user-attachments/assets/2debcd41-81b5-411e-9da1-53a61572321a)
+
 一個現代化的音樂和電影整合平台，使用 Django + Vue.js 構建。整合 Spotify API 和 TMDB API，提供音樂和電影的搜索、收藏和社交功能。
 
 ## 主要功能
