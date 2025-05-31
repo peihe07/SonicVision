@@ -24,7 +24,8 @@
 
 <script lang="ts">
 import type { Music } from '@/types';
-import { defineComponent, PropType } from 'vue';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
     name: 'MusicCard',

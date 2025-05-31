@@ -48,8 +48,8 @@ export interface SpotifyResponse {
     hasMore: boolean;
 }
 
-const SPOTIFY_CLIENT_ID = process.env.VUE_APP_SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.VUE_APP_SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET;
 
 // 用於存儲訪問令牌和過期時間
 let accessToken: string | null = null;

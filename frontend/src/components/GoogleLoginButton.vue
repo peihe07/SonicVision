@@ -27,7 +27,7 @@ export default defineComponent({
       try {
         // 初始化 Google Sign-In
         const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: process.env.VUE_APP_GOOGLE_CLIENT_ID,
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
           scope: 'email profile',
           callback: async (response: any) => {
             if (response.access_token) {

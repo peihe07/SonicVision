@@ -1,7 +1,7 @@
-import { Playlist, PlaylistService, SpotifySearchResponse } from '@/types/playlist';
+import type { Playlist, PlaylistService, SpotifySearchResponse } from '@/types/playlist';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 export function createPlaylistService(): PlaylistService {
     return {

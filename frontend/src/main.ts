@@ -1,10 +1,10 @@
 import type { ApiResponse, Movie, Music } from '@/types';
 import { createPinia } from 'pinia';
-import { createApp } from "vue";
-import App from "./App.vue";
-import "./assets/main.css";
+import { createApp } from 'vue';
+import App from './App.vue';
+import './assets/main.css';
 import './plugins/axios'; // 導入 axios 配置
-import router from "./router";
+import router from './router';
 import { setupServices } from './services';
 
 // Vuetify
@@ -42,4 +42,4 @@ declare module '@vue/runtime-core' {
     }
 }
 
-app.mount("#app");
+app.mount('#app');

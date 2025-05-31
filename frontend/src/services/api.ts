@@ -9,7 +9,7 @@ interface ErrorResponse {
     [key: string]: string | number | boolean | null | undefined;
 }
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // 創建 axios 實例
 export const apiClient = axios.create({

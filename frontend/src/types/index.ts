@@ -105,4 +105,10 @@ export interface NewPost {
     title: string;
     content: string;
     media_url?: string;
-} 
+}
+
+export * from './api';
+export * from './movie';
+export * from './playlist';
+export * from './user';
+

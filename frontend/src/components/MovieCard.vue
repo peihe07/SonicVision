@@ -25,7 +25,8 @@
 <script lang="ts">
 import { getImageUrl } from '@/services/tmdb';
 import type { Movie } from '@/types';
-import { defineComponent, PropType } from 'vue';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 
 export default defineComponent({

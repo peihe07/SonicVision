@@ -380,7 +380,7 @@ export default defineComponent({
         loading.value = true;
         error.value = null;
 
-        const clientId = process.env.VUE_APP_GOOGLE_CLIENT_ID;
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         if (!clientId) {
           console.error('Google Client ID 未配置');
           error.value = '系統配置錯誤，請聯繫管理員';
