@@ -253,70 +253,19 @@ def spotify_search(request):
         )
     
     try:
-        logger.info(f"執行 Spotify 搜尋: {query}")
         results = spotify.search(q=query, type=search_type, limit=20)
-        
-        if not isinstance(results, dict):
-            error_msg = f"非預期的搜尋結果格式: {type(results)}"
-            logger.error(error_msg)
-            return Response(
-                {"error": "搜尋結果格式錯誤", "details": error_msg},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
-        if 'tracks' not in results:
-            error_msg = "搜尋結果中缺少 tracks 字段"
-            logger.error(error_msg)
-            return Response(
-                {"error": "搜尋結果格式錯誤", "details": error_msg},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
         tracks = results['tracks']['items']
-        total_tracks = len(tracks)
-        logger.info(f"搜尋成功: 找到 {total_tracks} 首歌曲")
-        
         return Response({
             'tracks': {
                 'items': tracks,
-                'total': total_tracks
+                'total': len(tracks)
             }
         })
-        
-    except spotipy.exceptions.SpotifyException as e:
-        error_msg = f"Spotify API 錯誤: {str(e)}"
+    except Exception as e:
+        error_msg = f"搜尋過程中發生錯誤: {str(e)}"
         logger.error(error_msg)
-        
-        if "unauthorized" in str(e).lower():
-            logger.info("嘗試重新初始化 Spotify 客戶端")
-            if initialize_spotify_client():
-                try:
-                    results = spotify.search(q=query, type=search_type, limit=20)
-                    tracks = results['tracks']['items']
-                    return Response({
-                        'tracks': {
-                            'items': tracks,
-                            'total': len(tracks)
-                        }
-                    })
-                except Exception as retry_error:
-                    error_msg = f"重試搜尋失敗: {str(retry_error)}"
-                    logger.error(error_msg)
-                    return Response(
-                        {"error": "搜尋失敗", "details": error_msg},
-                        status=status.HTTP_503_SERVICE_UNAVAILABLE
-                    )
-        
         return Response(
             {"error": "搜尋失敗", "details": error_msg},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
-        
-    except Exception as e:
-        error_msg = f"未預期的錯誤: {str(e)}"
-        logger.error(error_msg)
-        return Response(
-            {"error": "搜尋過程中發生錯誤", "details": error_msg},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -348,21 +297,6 @@ def get_preview_url(request, track_id):
             
         logger.info(f"成功獲取預覽 URL: {preview_url}")
         return Response({"preview_url": preview_url})
-        
-    except spotipy.exceptions.SpotifyException as e:
-        error_msg = f"Spotify API 錯誤: {str(e)}"
-        logger.error(error_msg)
-        
-        if "invalid id" in str(e).lower():
-            return Response(
-                {"error": "無效的歌曲 ID"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-            
-        return Response(
-            {"error": error_msg},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
         
     except Exception as e:
         error_msg = f"獲取預覽 URL 時發生錯誤: {str(e)}"
@@ -450,12 +384,18 @@ def get_csrf_token(request):
 
 class PlaylistViewSet(viewsets.ModelViewSet):
     serializer_class = PlaylistSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # 允許所有用戶訪問
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'add_track', 'remove_track', 'add_collaborator', 'remove_collaborator', 'reorder_tracks']:
+            return [permissions.IsAuthenticated()]  # 創建、更新和刪除需要登入
+        return [permissions.AllowAny()]  # 其他操作允許所有人
 
     def get_queryset(self):
-        user = self.request.user
+        if not self.request.user.is_authenticated:
+            return Playlist.objects.filter(is_public=True)
         return Playlist.objects.filter(
-            Q(owner=user) | Q(collaborators__user=user) | Q(is_public=True)
+            Q(owner=self.request.user) | Q(collaborators__user=self.request.user) | Q(is_public=True)
         ).distinct()
 
     def get_serializer_class(self):
@@ -693,9 +633,10 @@ def google_login(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-def spotify_featured_playlists(request):
-    """獲取 Spotify 全球最新發行歌曲"""
+@permission_classes([])
+def spotify_new_releases(request):
     global spotify
+    logger.info("開始獲取最新音樂")
     
     # 檢查並初始化 Spotify 客戶端
     retry_count = 0
@@ -717,91 +658,61 @@ def spotify_featured_playlists(request):
                 "error": error_msg,
                 "details": "請確認 Spotify API 憑證是否正確"
             },
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
     try:
-        logger.info("獲取 Spotify 全球最新發行歌曲")
-        
-        # 獲取全球最新發行（不指定國家代碼，獲取更多數量）
-        new_releases = spotify.new_releases(limit=50)
+        # 獲取最新發行的專輯
+        logger.info("正在獲取最新發行的專輯...")
+        new_releases = spotify.new_releases(limit=20, country='TW')
         
         if not new_releases or 'albums' not in new_releases:
-            error_msg = "無法獲取最新發行資料"
-            logger.error(error_msg)
+            logger.error("獲取最新發行專輯失敗：無效的回應格式")
             return Response(
-                {"error": error_msg},
+                {"error": "無法獲取最新音樂"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # 格式化回應
-        albums = new_releases['albums']['items']
-        formatted_albums = []
+        # 處理每個專輯的第一首歌曲
+        tracks = []
+        for album in new_releases['albums']['items']:
+            try:
+                # 獲取專輯的曲目
+                album_tracks = spotify.album_tracks(album['id'])
+                if album_tracks and album_tracks['items']:
+                    # 獲取第一首歌曲的完整信息
+                    track = album_tracks['items'][0]
+                    track_info = spotify.track(track['id'])
+                    
+                    if track_info:
+                        tracks.append({
+                            'id': track_info['id'],
+                            'name': track_info['name'],
+                            'artists': track_info['artists'],
+                            'album': {
+                                'id': album['id'],
+                                'name': album['name'],
+                                'images': album['images']
+                            },
+                            'preview_url': track_info['preview_url'],
+                            'external_urls': track_info['external_urls'],
+                            'duration_ms': track_info['duration_ms']
+                        })
+            except Exception as e:
+                logger.error(f"處理專輯 {album['id']} 時發生錯誤: {str(e)}")
+                continue
         
-        for album in albums:
-            # 獲取專輯中的歌曲
-            album_tracks = spotify.album_tracks(album['id'])
-            tracks = []
-            
-            if album_tracks and 'items' in album_tracks:
-                tracks = [{
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artists': [{
-                        'id': artist['id'],
-                        'name': artist['name'],
-                        'external_urls': artist['external_urls']
-                    } for artist in track['artists']],
-                    'preview_url': track['preview_url'],
-                    'external_urls': track['external_urls'],
-                    'duration_ms': track['duration_ms'],
-                    'track_number': track['track_number']
-                } for track in album_tracks['items']]
-            
-            formatted_album = {
-                'id': album['id'],
-                'name': album['name'],
-                'type': album['album_type'],
-                'artists': [{
-                    'id': artist['id'],
-                    'name': artist['name'],
-                    'external_urls': artist['external_urls']
-                } for artist in album['artists']],
-                'images': album['images'],
-                'release_date': album['release_date'],
-                'total_tracks': album['total_tracks'],
-                'external_urls': album['external_urls'],
-                'tracks': tracks,
-                'popularity': album.get('popularity', 0)
-            }
-            formatted_albums.append(formatted_album)
-        
-        # 按發行日期排序（最新的在前）
-        formatted_albums.sort(key=lambda x: x['release_date'], reverse=True)
-        
-        response_data = {
-            'albums': {
-                'items': formatted_albums,
-                'total': len(formatted_albums)
-            }
-        }
-        
-        logger.info(f"成功獲取全球最新發行，共 {len(formatted_albums)} 張專輯")
-        return Response(response_data)
-        
-    except spotipy.exceptions.SpotifyException as e:
-        error_msg = f"Spotify API 錯誤: {str(e)}"
-        logger.error(error_msg)
-        return Response(
-            {"error": "獲取最新發行失敗", "details": error_msg},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
+        logger.info(f"成功獲取 {len(tracks)} 首最新音樂")
+        return Response(tracks)
         
     except Exception as e:
-        error_msg = f"未預期的錯誤: {str(e)}"
+        error_msg = f"獲取最新音樂時發生錯誤: {str(e)}"
         logger.error(error_msg)
         return Response(
-            {"error": "獲取最新發行過程中發生錯誤", "details": error_msg},
+            {
+                "error": "獲取最新音樂失敗",
+                "details": str(e)
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -857,7 +768,7 @@ def tmdb_featured_lists(request):
         
         # 格式化電影資訊
         formatted_movies = []
-        for movie in data.get('results', []):
+        for movie in data.get('results', [])[:6]:  # 只取前 6 部電影
             # 獲取電影詳細資訊，包括發行日期
             movie_detail_response = requests.get(
                 f'https://api.themoviedb.org/3/movie/{movie["id"]}',

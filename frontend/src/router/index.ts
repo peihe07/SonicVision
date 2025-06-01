@@ -1,9 +1,8 @@
-import DiscoverPage from '@/pages/DiscoverPage.vue';
-import HomePage from '@/pages/HomePage.vue';
 import MovieDetailPage from '@/pages/MovieDetailPage.vue';
 import MusicDetailPage from '@/pages/MusicDetailPage.vue';
 import SpotifyPlaylistsPage from '@/pages/SpotifyPlaylistsPage.vue';
 import TmdbListsPage from '@/pages/TmdbListsPage.vue';
+import WatchlistsPage from '@/pages/WatchlistsPage.vue';
 import { useAuthStore } from '@/store/modules/auth';
 import type { RouteRecordRaw } from 'vue-router';
 import { createRouter, createWebHistory } from 'vue-router';
@@ -11,67 +10,63 @@ import { createRouter, createWebHistory } from 'vue-router';
 const routes: Array<RouteRecordRaw> = [
     {
         path: '/',
-        name: 'home',
-        component: HomePage
+        name: 'Home',
+        component: () => import('@/pages/HomePage.vue'),
+        meta: { requiresAuth: false }
     },
     {
         path: '/discover',
-        name: 'discover',
-        component: DiscoverPage
+        name: 'Discover',
+        component: () => import('@/pages/DiscoverPage.vue'),
+        meta: { requiresAuth: false }
     },
     {
-        path: '/register',
-        name: 'register',
-        component: () => import('@/pages/RegisterPage.vue'),
-        meta: { guest: true }
-    },
-    {
-        path: '/login',
-        name: 'login',
-        component: () => import('@/pages/LoginPage.vue'),
-        meta: { guest: true }
-    },
-    {
-        path: '/forgot-password',
-        name: 'forgot-password',
-        component: () => import('@/pages/ForgotPasswordPage.vue'),
-        meta: { guest: true }
-    },
-    {
-        path: '/auth/callback',
-        name: 'auth-callback',
-        component: () => import('@/pages/AuthCallback.vue')
-    },
-    {
-        path: '/playlists',
-        name: 'playlists',
-        component: () => import('@/pages/PlaylistPage.vue'),
-        meta: { requiresAuth: true }
-    },
-    {
-        path: '/playlists/:id',
-        name: 'playlist-detail',
-        component: () => import('@/pages/PlaylistDetailPage.vue'),
-        meta: { requiresAuth: true }
+        path: '/latest-music',
+        name: 'LatestMusic',
+        component: () => import('@/pages/LatestMusicPage.vue'),
+        meta: { requiresAuth: false }
     },
     {
         path: '/watchlists',
-        name: 'watchlists',
-        redirect: '/tmdb-lists'
-    },
-    {
-        path: '/watchlists/:id',
-        redirect: '/tmdb-lists'
+        name: 'Watchlists',
+        component: WatchlistsPage,
+        meta: { requiresAuth: false }
     },
     {
         path: '/community',
-        name: 'community',
-        component: () => import('@/pages/CommunityPage.vue')
+        name: 'Community',
+        component: () => import('@/pages/CommunityPage.vue'),
+        meta: { requiresAuth: false }
     },
     {
         path: '/about',
-        name: 'about',
-        component: () => import('@/pages/AboutPage.vue')
+        name: 'About',
+        component: () => import('@/pages/AboutPage.vue'),
+        meta: { requiresAuth: false }
+    },
+    {
+        path: '/login',
+        name: 'Login',
+        component: () => import('@/pages/LoginPage.vue'),
+        meta: { requiresAuth: false }
+    },
+    {
+        path: '/register',
+        name: 'Register',
+        component: () => import('@/pages/RegisterPage.vue'),
+        meta: { requiresAuth: false }
+    },
+    {
+        path: '/profile',
+        name: 'Profile',
+        component: () => import('@/pages/ProfilePage.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('@/pages/SettingsPage.vue'),
+        meta: { requiresAuth: true }
     },
     {
         path: '/movie/:id',
@@ -88,7 +83,8 @@ const routes: Array<RouteRecordRaw> = [
         name: 'spotify-playlists',
         component: SpotifyPlaylistsPage,
         meta: {
-            title: 'Spotify 推薦歌單'
+            title: 'Spotify 推薦歌單',
+            requiresAuth: false
         }
     },
     {
@@ -96,7 +92,8 @@ const routes: Array<RouteRecordRaw> = [
         name: 'tmdb-lists',
         component: TmdbListsPage,
         meta: {
-            title: 'TMDB 推薦片單'
+            title: 'TMDB 推薦片單',
+            requiresAuth: false
         }
     }
 ];

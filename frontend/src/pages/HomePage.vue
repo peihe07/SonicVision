@@ -20,15 +20,21 @@
               {{ error.message }}
             </div>
             <div v-else class="trending-content">
-              <MusicCard v-for="track in trendingMusic" :key="track.id" :music="{
-                id: track.id,
-                title: track.name,
-                artist: track.artists[0].name,
-                coverUrl: track.album.images[0]?.url || '',
-                rating: 4.5,
-                spotifyUrl: track.external_urls.spotify,
-                youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${track.name} ${track.artists[0].name}`)}`
-              }" />
+              <div v-for="track in trendingMusic.slice(0, 6)" :key="track.id" class="music-card-wrapper">
+                <MusicCard :music="{
+                  id: track.id,
+                  title: track.name,
+                  artist: track.artists[0].name,
+                  coverUrl: track.album.images[0]?.url || '',
+                  rating: 4.5,
+                  spotifyUrl: track.external_urls.spotify,
+                  youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${track.name} ${track.artists[0].name}`)}`
+                }" />
+                <div class="card-title">
+                  <h4>{{ track.name }}</h4>
+                  <p>{{ track.artists[0].name }}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -41,16 +47,22 @@
               {{ error.message }}
             </div>
             <div v-else class="trending-content">
-              <MovieCard v-for="movie in trendingMovies" :key="movie.id" :movie="movie">
-                <div class="movie-details">
+              <div v-for="movie in trendingMovies.slice(0, 6)" :key="movie.id" class="movie-card-wrapper">
+                <MovieCard :movie="movie">
+                  <div class="movie-details">
+                    <h4>{{ movie.title }}</h4>
+                    <p>{{ movie.release_date?.split('-')[0] }}</p>
+                    <div class="rating">
+                      <i class="fas fa-star"></i>
+                      <span>{{ movie.vote_average?.toFixed(1) }}</span>
+                    </div>
+                  </div>
+                </MovieCard>
+                <div class="card-title">
                   <h4>{{ movie.title }}</h4>
                   <p>{{ movie.release_date?.split('-')[0] }}</p>
-                  <div class="rating">
-                    <i class="fas fa-star"></i>
-                    <span>{{ movie.vote_average?.toFixed(1) }}</span>
-                  </div>
                 </div>
-              </MovieCard>
+              </div>
             </div>
           </div>
         </div>
@@ -303,17 +315,21 @@ h2 {
 }
 
 .trending-movies .trending-content {
+  display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  justify-items: center;
-  align-items: center;
+  gap: 1.5rem;
+  max-height: 600px;
+  overflow: hidden;
 }
 
 .trending-music .trending-content {
+  display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  justify-items: center;
-  align-items: center;
+  gap: 1.5rem;
+  max-height: 600px;
+  overflow: hidden;
 }
 
 .trending-movies .trending-content>* {
@@ -473,17 +489,22 @@ h2 {
   }
 
   .trending-content {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .trending-movies .trending-content {
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-height: 900px;
+    overflow: hidden;
   }
 
+  .trending-movies .trending-content,
   .trending-music .trending-content {
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-height: 900px;
+    overflow: hidden;
   }
 
   .trending-movies .trending-content>*,
@@ -512,6 +533,46 @@ h2 {
   .movie-details p,
   .music-details p {
     font-size: 0.8rem;
+  }
+}
+
+.music-card-wrapper,
+.movie-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-title {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.card-title h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-title p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .card-title h4 {
+    font-size: 0.8rem;
+  }
+
+  .card-title p {
+    font-size: 0.7rem;
   }
 }
 </style>

@@ -15,7 +15,7 @@ from .views import (
     PlaylistViewSet,
     WatchlistViewSet,
     google_login,
-    spotify_featured_playlists,
+    spotify_new_releases,
     tmdb_featured_lists,
     tmdb_movie_detail,
     set_refresh_token,
@@ -47,12 +47,13 @@ urlpatterns = [
     path('protected/', protected_view, name='protected'),
     path('spotify/search/', spotify_search, name='spotify_search'),
     path('spotify/preview/<str:track_id>/', get_preview_url, name='get_preview_url'),
-    path('spotify/featured-playlists/', spotify_featured_playlists, name='spotify_featured_playlists'),
+    path('spotify/featured-playlists/', spotify_new_releases, name='spotify_featured_playlists'),
     path('tmdb/featured-lists/', tmdb_featured_lists, name='tmdb_featured_lists'),
     path('tmdb/movies/<int:movie_id>/', tmdb_movie_detail, name='tmdb_movie_detail'),
     path('playlists/<int:playlist_id>/cover/', PlaylistCoverUploadView.as_view(), name='playlist-cover-upload'),
     path('playlists/<int:playlist_id>/share/', PlaylistShareView.as_view(), name='playlist-share'),
     path('playlists/share/<str:share_code>/', PlaylistShareView.as_view(), name='playlist-share-view'),
+    path('spotify/new-releases/', spotify_new_releases, name='spotify-new-releases'),
     path('', include(router.urls)),
 ]
 

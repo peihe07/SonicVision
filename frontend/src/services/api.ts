@@ -2,6 +2,7 @@ import type { ApiResponse, Movie, Music, NewPost } from '@/types';
 import type { LoginCredentials, NotificationSettings, PasswordUpdateData, PrivacySettings, ProfileUpdateData, RegisterData, User } from '@/types/api';
 import type { AxiosError } from 'axios';
 import axios from 'axios';
+import { useRouter } from 'vue-router';
 
 // 定義錯誤響應類型
 interface ErrorResponse {
@@ -23,6 +24,7 @@ export const apiClient = axios.create({
 // Token 管理工具
 const tokenManager = {
     setAccessToken(token: string) {
+        localStorage.setItem('accessToken', token);
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     },
 
@@ -32,15 +34,23 @@ const tokenManager = {
     },
 
     clearTokens() {
+        localStorage.removeItem('accessToken');
         delete apiClient.defaults.headers.common['Authorization'];
         return apiClient.post('/auth/clear-refresh-token/');
+    },
+
+    getAccessToken() {
+        return localStorage.getItem('accessToken');
     }
 };
 
 // 請求攔截器
 apiClient.interceptors.request.use(
     (config) => {
-        // 不需要在請求攔截器中處理 token，因為已經在 defaults.headers 中設置
+        const token = tokenManager.getAccessToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
     },
     (error) => {
@@ -67,11 +77,14 @@ apiClient.interceptors.response.use(
                 tokenManager.setAccessToken(access);
 
                 // 重試原始請求
+                originalRequest.headers.Authorization = `Bearer ${access}`;
                 return apiClient(originalRequest);
             } catch (refreshError) {
-                // 刷新失敗，清除認證狀態
+                // 刷新失敗，清除認證狀態並重定向到登入頁面
                 await tokenManager.clearTokens();
-                window.location.href = '/login';
+                // 使用 router 進行導航，避免多次重定向
+                const router = useRouter();
+                router.push('/login');
                 return Promise.reject(refreshError);
             }
         }

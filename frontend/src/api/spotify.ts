@@ -6,7 +6,6 @@ const SPOTIFY_CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     }
@@ -80,10 +79,21 @@ export const spotifyAPI = {
     // 獲取熱門音樂
     getTrendingMusic: async (): Promise<SpotifyTrack[]> => {
         try {
-            const response = await api.get<SpotifySearchResponse>('/api/spotify/trending/');
-            return response.data.tracks.items;
+            const response = await api.get<SpotifyTrack[]>('/api/spotify/new-releases/');
+            if (!response.data || !Array.isArray(response.data)) {
+                console.error('獲取熱門音樂失敗：無效的回應格式');
+                return [];
+            }
+            return response.data;
         } catch (error) {
-            console.error('獲取熱門音樂時發生錯誤:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('獲取熱門音樂時發生錯誤:', {
+                    status: error.response?.status,
+                    message: error.response?.data?.error || error.message
+                });
+            } else {
+                console.error('獲取熱門音樂時發生未知錯誤:', error);
+            }
             return [];
         }
     }

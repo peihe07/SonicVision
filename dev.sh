@@ -4,7 +4,7 @@
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 # 啟動前端開發服務器
-cd "$PROJECT_ROOT/frontend" && npm run serve &
+cd "$PROJECT_ROOT/frontend" && npm run dev &
 
 # 等待前端服務器啟動
 sleep 5

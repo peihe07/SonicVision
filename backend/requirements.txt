@@ -8,6 +8,11 @@ django-storages==1.14.2
 whitenoise==6.9.0
 django-environ==0.11.2
 
+# WebSocket
+channels==4.0.0
+channels-redis==4.2.0
+daphne==4.1.0
+
 # 數據庫
 psycopg2-binary==2.9.9
 

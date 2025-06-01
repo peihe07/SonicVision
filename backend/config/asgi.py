@@ -12,7 +12,7 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from django.urls import path
-from channels.security.websocket import AllowedHostsOriginValidator
+from api.consumers import MusicConsumer, ChatConsumer
 
 # 根據環境變數選擇設定檔
 settings_module = 'config.settings_prod' if os.getenv('DJANGO_ENV') == 'production' else 'config.settings_dev'
@@ -20,11 +20,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
-            URLRouter([
-                # 這裡可以添加 WebSocket 路由
-            ])
-        )
+    "websocket": AuthMiddlewareStack(
+        URLRouter([
+            path('ws/music/', MusicConsumer.as_asgi()),
+            path('ws/chat/', ChatConsumer.as_asgi()),
+        ])
     ),
 })

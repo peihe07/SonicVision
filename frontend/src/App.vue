@@ -1,12 +1,13 @@
 <template>
   <div id="app">
+    <Toast />
     <nav class="navbar">
       <div class="nav-brand">
         <router-link to="/" class="brand">SonicVision</router-link>
       </div>
       <div class="nav-links">
         <router-link to="/discover" class="nav-link">探索</router-link>
-        <router-link to="/playlists" class="nav-link">最新音樂</router-link>
+        <router-link to="/latest-music" class="nav-link">最新音樂</router-link>
         <router-link to="/watchlists" class="nav-link">最新電影</router-link>
         <router-link to="/community" class="nav-link">社群</router-link>
         <router-link to="/about" class="nav-link">關於</router-link>
@@ -17,11 +18,7 @@
       </div>
       <div v-else class="nav-user">
         <div class="user-menu" @click="toggleUserMenu" ref="userMenuRef">
-          <img 
-            :src="currentUser?.avatar || '/avatars/default.jpg'" 
-            :alt="currentUser?.username"
-            class="user-avatar"
-          >
+          <img :src="currentUser?.avatar || '/avatars/default.jpg'" :alt="currentUser?.username" class="user-avatar">
           <div class="user-menu-dropdown" v-if="showUserMenu">
             <div class="user-info">
               <strong>{{ currentUser?.username }}</strong>
@@ -72,62 +69,48 @@
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import { useAuthStore } from '@/store/modules/auth';
-import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import Toast from '@/components/Toast.vue';
 
-export default defineComponent({
-  name: 'App',
-  
-  setup() {
-    const authStore = useAuthStore();
-    const router = useRouter();
-    const showUserMenu = ref(false);
-    const userMenuRef = ref<HTMLElement | null>(null);
+const authStore = useAuthStore();
+const router = useRouter();
+const showUserMenu = ref(false);
+const userMenuRef = ref<HTMLElement | null>(null);
 
-    const isAuthenticated = computed(() => authStore.isAuthenticated);
-    const currentUser = computed(() => authStore.currentUser);
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const currentUser = computed(() => authStore.currentUser);
 
-    const toggleUserMenu = () => {
-      showUserMenu.value = !showUserMenu.value;
-    };
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+};
 
-    const handleLogout = async () => {
-      try {
-        await authStore.logout();
-        showUserMenu.value = false;
-        router.push('/login');
-      } catch (error) {
-        console.error('登出失敗:', error);
-      }
-    };
-
-    // 點擊外部關閉選單
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
-        showUserMenu.value = false;
-      }
-    };
-
-    onMounted(() => {
-      document.addEventListener('click', handleClickOutside);
-      authStore.checkAuth();
-    });
-
-    onUnmounted(() => {
-      document.removeEventListener('click', handleClickOutside);
-    });
-
-    return {
-      isAuthenticated,
-      currentUser,
-      showUserMenu,
-      userMenuRef,
-      toggleUserMenu,
-      handleLogout
-    };
+const handleLogout = async () => {
+  try {
+    await authStore.logout();
+    showUserMenu.value = false;
+    router.push('/login');
+  } catch (error) {
+    console.error('登出失敗:', error);
   }
+};
+
+// 點擊外部關閉選單
+const handleClickOutside = (event: MouseEvent) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+    showUserMenu.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+  authStore.checkAuth();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
 });
 </script>
 
@@ -162,7 +145,8 @@ export default defineComponent({
   align-items: center;
 }
 
-.nav-auth, .nav-user {
+.nav-auth,
+.nav-user {
   display: flex;
   gap: 1rem;
   align-items: center;

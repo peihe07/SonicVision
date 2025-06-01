@@ -1,3 +1,4 @@
+import type { ApiResponse, Music } from '@/types';
 import axios, { AxiosError } from 'axios';
 
 interface SpotifyArtist {
@@ -171,8 +172,33 @@ export async function searchSpotify(query: string, page = 1): Promise<SpotifyRes
     }
 }
 
-export async function getTrendingMusic(): Promise<SpotifyTrack[]> {
+// 模擬數據
+const mockTrendingMusic: Music[] = [
+    {
+        id: 1,
+        title: '模擬音樂 1',
+        artist: '模擬藝術家 1',
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.5,
+        previewUrl: 'https://example.com/preview1.mp3',
+        spotifyUrl: 'https://open.spotify.com/track/example1',
+        youtubeUrl: 'https://www.youtube.com/watch?v=example1'
+    },
+    {
+        id: 2,
+        title: '模擬音樂 2',
+        artist: '模擬藝術家 2',
+        coverUrl: 'https://via.placeholder.com/300',
+        rating: 4.3,
+        previewUrl: 'https://example.com/preview2.mp3',
+        spotifyUrl: 'https://open.spotify.com/track/example2',
+        youtubeUrl: 'https://www.youtube.com/watch?v=example2'
+    }
+];
+
+export const getTrendingMusic = async (): Promise<ApiResponse<Music[]>> => {
     try {
+        // 先嘗試從 Spotify API 獲取數據
         const response = await spotifyClient.get<SpotifyNewReleasesResponse>('/browse/new-releases', {
             params: {
                 limit: 20,
@@ -181,37 +207,30 @@ export async function getTrendingMusic(): Promise<SpotifyTrack[]> {
         });
 
         if (!response.data?.albums?.items) {
-            console.warn('Spotify API 返回的新發行數據格式不正確:', response.data);
-            return [];
+            throw new Error('Spotify API 返回的數據格式不正確');
         }
 
-        // 將專輯數據轉換為 track 格式
-        return response.data.albums.items.map(album => ({
-            id: album.id,
-            name: album.name,
-            artists: album.artists,
-            album: {
-                id: album.id,
-                name: album.name,
-                images: album.images,
-                artists: album.artists,
-                external_urls: album.external_urls
-            },
-            preview_url: null,
-            external_urls: {
-                spotify: album.external_urls.spotify
-            }
+        // 轉換數據格式
+        const musicData: Music[] = response.data.albums.items.map(album => ({
+            id: parseInt(album.id),
+            title: album.name,
+            artist: album.artists.map(artist => artist.name).join(', '),
+            coverUrl: album.images[0]?.url || 'https://via.placeholder.com/300',
+            rating: 0,
+            previewUrl: undefined,
+            spotifyUrl: album.external_urls.spotify,
+            youtubeUrl: undefined
         }));
+
+        return {
+            data: musicData,
+            message: '成功獲取熱門音樂'
+        };
     } catch (error) {
-        if (error instanceof AxiosError) {
-            console.error('獲取熱門音樂失敗:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            });
-        } else {
-            console.error('獲取熱門音樂時發生未知錯誤:', error);
-        }
-        return [];
+        console.warn('Spotify API 請求失敗，使用模擬數據:', error);
+        return {
+            data: mockTrendingMusic,
+            message: '使用模擬數據'
+        };
     }
-} 
+}; 

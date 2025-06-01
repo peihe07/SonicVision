@@ -5,25 +5,13 @@
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
           <label for="username">用戶名稱</label>
-          <input
-            type="text"
-            id="username"
-            v-model="form.username"
-            required
-            class="form-control"
-            placeholder="請輸入您的用戶名稱"
-          >
+          <input type="text" id="username" v-model="form.username" required class="form-control"
+            placeholder="請輸入您的用戶名稱">
         </div>
         <div class="form-group">
           <label for="password">密碼</label>
-          <input
-            type="password"
-            id="password"
-            v-model="form.password"
-            required
-            class="form-control"
-            placeholder="請輸入您的密碼"
-          >
+          <input type="password" id="password" v-model="form.password" required class="form-control"
+            placeholder="請輸入您的密碼">
         </div>
         <div class="form-options">
           <label class="remember-me">
@@ -62,6 +50,7 @@
 import { useAuthStore } from '@/store/modules/auth';
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 
 interface GoogleResponse {
   code: string;
@@ -98,17 +87,18 @@ interface FormData {
 
 export default defineComponent({
   name: 'LoginPage',
-  
+
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();
-    
+    const route = useRoute();
+
     const form = ref<FormData>({
       username: '',
       password: '',
       remember: false
     });
-    
+
     const error = ref<string | null>(null);
     const loading = ref(false);
 
@@ -120,7 +110,8 @@ export default defineComponent({
           username: form.value.username,
           password: form.value.password
         });
-        router.push('/discover');
+        const redirectPath = route.query.redirect as string;
+        router.push(redirectPath || '/discover');
       } catch (err) {
         console.error('Login error:', err);
         error.value = authStore.error || '登入失敗，請檢查您的用戶名稱和密碼';
@@ -150,7 +141,8 @@ export default defineComponent({
             if (response.code) {
               try {
                 await authStore.googleLogin(response.code);
-                router.push('/discover');
+                const redirectPath = route.query.redirect as string;
+                router.push(redirectPath || '/discover');
               } catch (err) {
                 console.error('Google 登入處理失敗:', err);
                 error.value = '使用 Google 登入失敗，請稍後再試';

@@ -12,12 +12,6 @@ import { authAPI } from '@/services/api';
 import { defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
 export default defineComponent({
   name: 'GoogleLoginButton',
   setup() {
@@ -25,8 +19,19 @@ export default defineComponent({
 
     const handleGoogleLogin = async () => {
       try {
+        // 載入 Google Identity Services
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+
         // 初始化 Google Sign-In
-        const client = window.google.accounts.oauth2.initTokenClient({
+        const client = google.accounts.oauth2.initTokenClient({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
           scope: 'email profile',
           callback: async (response: any) => {
@@ -85,6 +90,6 @@ export default defineComponent({
 .google-icon {
   width: 24px;
   height: 24px;
-  margin-right: 0.75rem;
+  margin-right: 10px;
 }
-</style> 
+</style>
