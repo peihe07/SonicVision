@@ -20,7 +20,9 @@ from .views import (
     tmdb_movie_detail,
     set_refresh_token,
     clear_refresh_token,
-    refresh_token
+    refresh_token,
+    PlaylistCoverUploadView,
+    PlaylistShareView,
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -48,6 +50,9 @@ urlpatterns = [
     path('spotify/featured-playlists/', spotify_featured_playlists, name='spotify_featured_playlists'),
     path('tmdb/featured-lists/', tmdb_featured_lists, name='tmdb_featured_lists'),
     path('tmdb/movies/<int:movie_id>/', tmdb_movie_detail, name='tmdb_movie_detail'),
+    path('playlists/<int:playlist_id>/cover/', PlaylistCoverUploadView.as_view(), name='playlist-cover-upload'),
+    path('playlists/<int:playlist_id>/share/', PlaylistShareView.as_view(), name='playlist-share'),
+    path('playlists/share/<str:share_code>/', PlaylistShareView.as_view(), name='playlist-share-view'),
     path('', include(router.urls)),
 ]
 

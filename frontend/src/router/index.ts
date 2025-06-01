@@ -38,13 +38,21 @@ const routes: Array<RouteRecordRaw> = [
         meta: { guest: true }
     },
     {
+        path: '/auth/callback',
+        name: 'auth-callback',
+        component: () => import('@/pages/AuthCallback.vue')
+    },
+    {
         path: '/playlists',
         name: 'playlists',
-        redirect: '/spotify-playlists'
+        component: () => import('@/pages/PlaylistPage.vue'),
+        meta: { requiresAuth: true }
     },
     {
         path: '/playlists/:id',
-        redirect: '/spotify-playlists'
+        name: 'playlist-detail',
+        component: () => import('@/pages/PlaylistDetailPage.vue'),
+        meta: { requiresAuth: true }
     },
     {
         path: '/watchlists',
@@ -101,13 +109,12 @@ const router = createRouter({
 // 導航守衛
 router.beforeEach((to, from, next) => {
     const authStore = useAuthStore();
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-    const isGuestOnly = to.matched.some(record => record.meta.guest);
+    const isAuthenticated = authStore.isAuthenticated;
 
-    if (requiresAuth && !authStore.isAuthenticated) {
-        next('/login');
-    } else if (isGuestOnly && authStore.isAuthenticated) {
-        next('/');
+    if (to.meta.requiresAuth && !isAuthenticated) {
+        next({ name: 'login', query: { redirect: to.fullPath } });
+    } else if (to.meta.guest && isAuthenticated) {
+        next({ name: 'home' });
     } else {
         next();
     }

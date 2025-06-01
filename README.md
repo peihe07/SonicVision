@@ -32,6 +32,13 @@
 
 ## 技術棧
 
+### 環境要求
+- Node.js 18.0.0 或更高版本
+- Python 3.9.0 或更高版本
+- PostgreSQL 14.0 或更高版本
+- Docker 24.0.0 或更高版本（可選）
+- Docker Compose 2.0.0 或更高版本（可選）
+
 ### 後端
 - Python 3.9+
 - Django 4.2
@@ -44,24 +51,26 @@
 - WebSocket 支援
 
 ### 前端
-- Vue.js 3
-- TypeScript
-- Pinia (狀態管理)
-- Vue Router
-- Vuetify 3 (UI 框架)
-- Socket.IO (實時通訊)
-- Axios
-- TailwindCSS
+- Vue.js 3.4+
+- TypeScript 5.3+
+- Vite 5.1+ (構建工具)
+- Pinia 3.0+ (狀態管理)
+- Vue Router 4.2+
+- Vuetify 3.7+ (UI 框架)
+- Socket.IO Client 4.7+ (實時通訊)
+- Axios 1.6+
+- SASS/SCSS 1.71+
 
 ### 開發工具
 - Docker & Docker Compose
-- npm (Node.js 依賴管理)
-- Vue CLI
+- npm 9.0+
 - Black (Python 代碼格式化)
 - Flake8 (Python 代碼檢查)
 - isort (Python import 排序)
-- ESLint & TypeScript ESLint
-- SASS/SCSS
+- ESLint 8.56+ & TypeScript ESLint
+- Prettier 3.2+ (代碼格式化)
+- Vite Plugin Vuetify
+- Vite Plugin Compression
 
 ## 快速開始
 
@@ -143,19 +152,6 @@
    npm run dev
    ```
 
-## 開發指南
-
-- 遵循 [Python 風格指南 (PEP 8)](https://www.python.org/dev/peps/pep-0008/)
-- 遵循 [Vue.js 風格指南](https://v3.vuejs.org/style-guide/)
-- 提交前運行測試：
-  ```bash
-  # 後端測試
-  pytest
-  
-  # 前端測試
-  npm run test
-  ```
-
 ## 貢獻指南
 
 1. Fork 本專案
@@ -166,4 +162,325 @@
 
 ## 授權
 
-本專案採用 MIT 授權 - 詳見 [LICENSE](LICENSE) 文件 
+本專案採用 MIT 授權 - 詳見 [LICENSE](LICENSE) 文件
+
+## 部署指南
+
+### 生產環境要求
+- 2+ CPU 核心
+- 4GB+ RAM
+- 20GB+ 硬碟空間
+- Ubuntu 20.04 LTS 或更高版本
+- Nginx 1.18+
+- PostgreSQL 14+
+
+### 部署步驟
+
+1. 服務器準備
+   ```bash
+   # 更新系統
+   sudo apt update && sudo apt upgrade -y
+   
+   # 安裝必要套件
+   sudo apt install -y nginx postgresql postgresql-contrib python3-pip nodejs npm
+   ```
+
+2. 數據庫設置
+   ```bash
+   # 創建數據庫和用戶
+   sudo -u postgres psql
+   CREATE DATABASE sonicvision;
+   CREATE USER sonicvision WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE sonicvision TO sonicvision;
+   ```
+
+3. 後端部署
+   ```bash
+   # 克隆代碼
+   git clone https://github.com/your-username/sonicvision.git
+   cd sonicvision/backend
+   
+   # 設置虛擬環境
+   python3 -m venv .venv
+   source .venv/bin/activate
+   
+   # 安裝依賴
+   pip install -r requirements.txt
+   
+   # 設置環境變數
+   cp .env.example .env
+   # 編輯 .env 文件，設置生產環境配置
+   
+   # 收集靜態文件
+   python manage.py collectstatic
+   
+   # 運行數據庫遷移
+   python manage.py migrate
+   ```
+
+4. 前端部署
+   ```bash
+   cd ../frontend
+   
+   # 安裝依賴
+   npm install
+   
+   # 設置環境變數
+   cp .env.example .env
+   # 編輯 .env 文件，設置生產環境配置
+   
+   # 構建生產版本
+   npm run build
+   ```
+
+5. Nginx 配置
+   ```nginx
+   # /etc/nginx/sites-available/sonicvision
+   server {
+       listen 80;
+       server_name your-domain.com;
+   
+       # 前端
+       location / {
+           root /path/to/sonicvision/frontend/dist;
+           try_files $uri $uri/ /index.html;
+       }
+   
+       # 後端 API
+       location /api {
+           proxy_pass http://localhost:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+       }
+   
+       # WebSocket
+       location /ws {
+           proxy_pass http://localhost:8000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection "upgrade";
+       }
+   }
+   ```
+
+6. 啟動服務
+   ```bash
+   # 啟用 Nginx 配置
+   sudo ln -s /etc/nginx/sites-available/sonicvision /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl restart nginx
+   
+   # 使用 Gunicorn 運行後端
+   cd backend
+   gunicorn -w 4 -b 127.0.0.1:8000 sonicvision.wsgi:application
+   ```
+
+### 性能優化建議
+
+1. 數據庫優化
+   - 使用數據庫連接池
+   - 建立適當的索引
+   - 定期維護和優化
+
+2. 緩存策略
+   - 使用 Redis 進行緩存
+   - 實現 CDN 加速
+   - 啟用瀏覽器緩存
+
+3. 負載均衡
+   - 使用 Nginx 負載均衡
+   - 配置多個 Gunicorn 工作進程
+   - 實現健康檢查
+
+4. 監控和日誌
+   - 使用 Prometheus 監控
+   - 配置 ELK 日誌系統
+   - 設置警報機制
+
+### 安全建議
+
+1. SSL/TLS 配置
+   ```bash
+   # 使用 Let's Encrypt 獲取 SSL 證書
+   sudo certbot --nginx -d your-domain.com
+   ```
+
+2. 防火牆設置
+   ```bash
+   # 配置 UFW
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   sudo ufw enable
+   ```
+
+3. 定期更新
+   - 設置自動安全更新
+   - 定期更新依賴包
+   - 監控安全公告
+
+## 故障排除
+
+### 常見問題
+
+1. 後端服務無法啟動
+   ```bash
+   # 檢查日誌
+   tail -f /var/log/nginx/error.log
+   tail -f /var/log/gunicorn/error.log
+   
+   # 檢查端口佔用
+   sudo lsof -i :8000
+   
+   # 檢查數據庫連接
+   python manage.py check
+   ```
+
+2. 前端構建失敗
+   ```bash
+   # 清除緩存
+   npm cache clean --force
+   rm -rf node_modules
+   npm install
+   
+   # 檢查依賴版本
+   npm outdated
+   
+   # 檢查構建日誌
+   npm run build --verbose
+   ```
+
+3. 數據庫問題
+   ```bash
+   # 檢查數據庫連接
+   psql -U sonicvision -d sonicvision -h localhost
+   
+   # 檢查數據庫日誌
+   tail -f /var/log/postgresql/postgresql-14-main.log
+   
+   # 修復數據庫
+   python manage.py dbshell
+   ```
+
+### 日誌管理
+
+1. 日誌配置
+   ```python
+   # settings.py
+   LOGGING = {
+       'version': 1,
+       'disable_existing_loggers': False,
+       'handlers': {
+           'file': {
+               'level': 'INFO',
+               'class': 'logging.FileHandler',
+               'filename': 'debug.log',
+           },
+       },
+       'loggers': {
+           'django': {
+               'handlers': ['file'],
+               'level': 'INFO',
+               'propagate': True,
+           },
+       },
+   }
+   ```
+
+2. 日誌查看
+   ```bash
+   # 實時查看日誌
+   tail -f debug.log
+   
+   # 搜索錯誤
+   grep ERROR debug.log
+   
+   # 查看特定時間的日誌
+   sed -n '/2024-02-20 10:00:00/,/2024-02-20 11:00:00/p' debug.log
+   ```
+
+### 監控系統
+
+1. 系統監控
+   ```bash
+   # 安裝 Prometheus
+   sudo apt install prometheus
+   
+   # 安裝 Node Exporter
+   sudo apt install prometheus-node-exporter
+   
+   # 配置 Prometheus
+   sudo nano /etc/prometheus/prometheus.yml
+   ```
+
+2. 應用監控
+   ```python
+   # 使用 Prometheus 客戶端
+   from prometheus_client import Counter, Histogram
+   
+   # 定義指標
+   REQUEST_COUNT = Counter('request_count', 'Total request count')
+   REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency')
+   ```
+
+3. 警報配置
+   ```yaml
+   # alertmanager.yml
+   global:
+     resolve_timeout: 5m
+   
+   route:
+     group_by: ['alertname']
+     group_wait: 10s
+     group_interval: 10s
+     repeat_interval: 1h
+     receiver: 'email-notifications'
+   
+   receivers:
+   - name: 'email-notifications'
+     email_configs:
+     - to: 'admin@example.com'
+       from: 'alertmanager@example.com'
+       smarthost: 'smtp.example.com:587'
+   ```
+
+### 性能優化
+
+1. 數據庫優化
+   ```sql
+   -- 分析查詢性能
+   EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'test@example.com';
+   
+   -- 創建索引
+   CREATE INDEX idx_users_email ON users(email);
+   
+   -- 優化表
+   VACUUM ANALYZE users;
+   ```
+
+2. 緩存優化
+   ```python
+   # 使用 Redis 緩存
+   from django.core.cache import cache
+   
+   # 設置緩存
+   cache.set('key', 'value', timeout=3600)
+   
+   # 獲取緩存
+   value = cache.get('key')
+   ```
+
+3. 前端優化
+   ```javascript
+   // 使用路由懶加載
+   const routes = [
+     {
+       path: '/profile',
+       component: () => import('./views/Profile.vue')
+     }
+   ]
+   
+   // 使用 keep-alive
+   <keep-alive>
+     <router-view></router-view>
+   </keep-alive>
+   ```

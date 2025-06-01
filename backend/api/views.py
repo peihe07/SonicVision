@@ -17,8 +17,8 @@ import logging
 import base64
 import requests
 import time
-from .models import Post, Comment, Playlist, Watchlist
-from .serializers import PostSerializer, CommentSerializer, PlaylistSerializer, WatchlistSerializer
+from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator
+from .serializers import PostSerializer, CommentSerializer, PlaylistSerializer, WatchlistSerializer, PlaylistCreateSerializer, PlaylistTrackSerializer, PlaylistCollaboratorSerializer
 from rest_framework import serializers
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -28,6 +28,12 @@ from social_core.exceptions import MissingBackend, AuthTokenError, AuthForbidden
 from django.db import models
 from django.conf import settings
 import jwt
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.utils.crypto import get_random_string
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -444,23 +450,177 @@ def get_csrf_token(request):
 
 class PlaylistViewSet(viewsets.ModelViewSet):
     serializer_class = PlaylistSerializer
-    permission_classes = [permissions.AllowAny]  # 允許所有用戶訪問
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated()]  # 創建、更新和刪除需要登入
-        return [permissions.AllowAny()]  # 其他操作允許所有人
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return Playlist.objects.filter(is_public=True)
+        user = self.request.user
         return Playlist.objects.filter(
-            models.Q(owner=self.request.user) |
-            models.Q(is_public=True)
-        )
+            Q(owner=user) | Q(collaborators__user=user) | Q(is_public=True)
+        ).distinct()
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PlaylistCreateSerializer
+        return PlaylistSerializer
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def add_track(self, request, pk=None):
+        playlist = self.get_object()
+        track_id = request.data.get('track_id')
+        
+        if not track_id:
+            return Response(
+                {'error': '需要提供 track_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 檢查權限
+        if not (playlist.owner == request.user or 
+                playlist.collaborators.filter(user=request.user, can_edit=True).exists()):
+            return Response(
+                {'error': '沒有權限修改此播放列表'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 獲取最後一個位置
+        last_position = playlist.tracks.order_by('-position').first()
+        new_position = (last_position.position + 1) if last_position else 0
+
+        track = PlaylistTrack.objects.create(
+            playlist=playlist,
+            track_id=track_id,
+            added_by=request.user,
+            position=new_position
+        )
+
+        return Response(
+            PlaylistTrackSerializer(track).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=['post'])
+    def remove_track(self, request, pk=None):
+        playlist = self.get_object()
+        track_id = request.data.get('track_id')
+        
+        if not track_id:
+            return Response(
+                {'error': '需要提供 track_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 檢查權限
+        if not (playlist.owner == request.user or 
+                playlist.collaborators.filter(user=request.user, can_edit=True).exists()):
+            return Response(
+                {'error': '沒有權限修改此播放列表'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        track = get_object_or_404(PlaylistTrack, playlist=playlist, track_id=track_id)
+        track.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def add_collaborator(self, request, pk=None):
+        playlist = self.get_object()
+        user_id = request.data.get('user_id')
+        can_edit = request.data.get('can_edit', True)
+        
+        if not user_id:
+            return Response(
+                {'error': '需要提供 user_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 只有播放列表擁有者可以添加協作者
+        if playlist.owner != request.user:
+            return Response(
+                {'error': '只有播放列表擁有者可以添加協作者'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': '找不到指定的用戶'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        collaborator, created = PlaylistCollaborator.objects.get_or_create(
+            playlist=playlist,
+            user=user,
+            defaults={'can_edit': can_edit}
+        )
+
+        if not created:
+            collaborator.can_edit = can_edit
+            collaborator.save()
+
+        return Response(
+            PlaylistCollaboratorSerializer(collaborator).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=['post'])
+    def remove_collaborator(self, request, pk=None):
+        playlist = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response(
+                {'error': '需要提供 user_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 只有播放列表擁有者可以移除協作者
+        if playlist.owner != request.user:
+            return Response(
+                {'error': '只有播放列表擁有者可以移除協作者'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        collaborator = get_object_or_404(
+            PlaylistCollaborator,
+            playlist=playlist,
+            user_id=user_id
+        )
+        collaborator.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def reorder_tracks(self, request, pk=None):
+        playlist = self.get_object()
+        track_positions = request.data.get('track_positions', [])
+        
+        if not track_positions:
+            return Response(
+                {'error': '需要提供 track_positions'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 檢查權限
+        if not (playlist.owner == request.user or 
+                playlist.collaborators.filter(user=request.user, can_edit=True).exists()):
+            return Response(
+                {'error': '沒有權限修改此播放列表'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 更新每個曲目的位置
+        for position, track_id in enumerate(track_positions):
+            PlaylistTrack.objects.filter(
+                playlist=playlist,
+                track_id=track_id
+            ).update(position=position)
+
+        return Response(status=status.HTTP_200_OK)
 
 class WatchlistViewSet(viewsets.ModelViewSet):
     serializer_class = WatchlistSerializer
@@ -937,3 +1097,117 @@ def refresh_token(request):
         })
     except Exception as e:
         return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PlaylistCoverUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, playlist_id):
+        try:
+            playlist = Playlist.objects.get(id=playlist_id)
+            
+            # 檢查權限
+            if playlist.owner != request.user and not playlist.collaborators.filter(user=request.user, can_edit=True).exists():
+                return Response(
+                    {'error': '您沒有權限修改此播放列表'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if 'cover' not in request.FILES:
+                return Response(
+                    {'error': '請提供封面圖片'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cover_file = request.FILES['cover']
+            
+            # 驗證文件類型
+            if not cover_file.content_type.startswith('image/'):
+                return Response(
+                    {'error': '請上傳圖片文件'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # 保存封面圖片
+            playlist.cover = cover_file
+            playlist.save()
+
+            return Response(
+                PlaylistSerializer(playlist).data,
+                status=status.HTTP_200_OK
+            )
+
+        except Playlist.DoesNotExist:
+            return Response(
+                {'error': '播放列表不存在'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class PlaylistShareView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, playlist_id):
+        try:
+            playlist = Playlist.objects.get(id=playlist_id)
+            
+            # 檢查權限
+            if playlist.owner != request.user and not playlist.collaborators.filter(user=request.user, can_edit=True).exists():
+                return Response(
+                    {'error': '您沒有權限分享此播放列表'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # 生成分享代碼
+            share_code = get_random_string(8)
+            playlist.share_code = share_code
+            playlist.save()
+
+            return Response({
+                'share_code': share_code,
+                'share_url': f"{request.scheme}://{request.get_host()}/playlists/share/{share_code}"
+            })
+
+        except Playlist.DoesNotExist:
+            return Response(
+                {'error': '播放列表不存在'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def get(self, request, share_code):
+        try:
+            playlist = Playlist.objects.get(share_code=share_code)
+            
+            # 檢查播放列表是否公開或用戶是否有權限
+            if not playlist.is_public and not (
+                request.user.is_authenticated and (
+                    playlist.owner == request.user or
+                    playlist.collaborators.filter(user=request.user).exists()
+                )
+            ):
+                return Response(
+                    {'error': '您沒有權限訪問此播放列表'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            return Response(PlaylistSerializer(playlist).data)
+
+        except Playlist.DoesNotExist:
+            return Response(
+                {'error': '找不到此分享的播放列表'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

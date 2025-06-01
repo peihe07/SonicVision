@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Comment, Playlist, Watchlist
+from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -41,19 +41,49 @@ class PostSerializer(serializers.ModelSerializer):
         validated_data['author'] = self.context['request'].user
         return super().create(validated_data)
 
+class PlaylistTrackSerializer(serializers.ModelSerializer):
+    added_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PlaylistTrack
+        fields = ['id', 'track_id', 'added_at', 'added_by', 'position']
+        read_only_fields = ['added_at', 'added_by']
+
+class PlaylistCollaboratorSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PlaylistCollaborator
+        fields = ['id', 'user', 'can_edit', 'added_at']
+        read_only_fields = ['added_at']
+
 class PlaylistSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.username')
-    coverUrl = serializers.SerializerMethodField()
+    owner = UserSerializer(read_only=True)
+    tracks = PlaylistTrackSerializer(many=True, read_only=True)
+    collaborators = PlaylistCollaboratorSerializer(many=True, read_only=True)
+    track_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Playlist
-        fields = ['id', 'name', 'description', 'coverUrl', 'owner', 'created_at', 
-                 'updated_at', 'is_public', 'song_count']
+        fields = [
+            'id', 'name', 'description', 'owner', 'is_public',
+            'created_at', 'updated_at', 'spotify_id', 'cover_image',
+            'tracks', 'collaborators', 'track_count'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'owner']
 
-    def get_coverUrl(self, obj):
-        if obj.cover:
-            return self.context['request'].build_absolute_uri(obj.cover.url)
-        return None
+    def get_track_count(self, obj):
+        return obj.tracks.count()
+
+class PlaylistCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Playlist
+        fields = ['name', 'description', 'is_public']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        playlist = Playlist.objects.create(owner=user, **validated_data)
+        return playlist
 
 class WatchlistSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')

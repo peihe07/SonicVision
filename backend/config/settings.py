@@ -25,7 +25,12 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4w%fs14ztb!^l!o#10r*&vj=#'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.ondigitalocean.app',  # DigitalOcean 域名
+    os.environ.get('ALLOWED_HOST', ''),
+]
 
 # 允許所有網域訪問 API（開發模式用，正式環境請設定特定來源）
 CORS_ALLOW_ALL_ORIGINS = True
@@ -116,6 +121,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise',
     'rest_framework',
     'rest_framework_simplejwt',
     'api',
@@ -127,6 +133,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -178,8 +185,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'sonicvision'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -283,8 +294,18 @@ SOCIAL_AUTH_PIPELINE = (
 
 # TMDB API 設置
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
+
 if not TMDB_API_KEY:
-    raise ValueError('TMDB_API_KEY 環境變數未設置')
+    print('警告: TMDB API 密鑰未設置，電影相關功能將無法使用')
+    INSTALLED_APPS.remove('api.tmdb')
+
+# Spotify API 設置
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+
+if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+    print('警告: Spotify API 憑證未設置，音樂相關功能將無法使用')
+    INSTALLED_APPS.remove('api.spotify')
 
 # Channels 配置
 ASGI_APPLICATION = 'config.asgi.application'

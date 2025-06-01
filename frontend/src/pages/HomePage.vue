@@ -20,19 +20,15 @@
               {{ error.message }}
             </div>
             <div v-else class="trending-content">
-              <MusicCard
-                v-for="track in trendingMusic"
-                :key="track.id"
-                :music="{
-                  id: track.id,
-                  title: track.name,
-                  artist: track.artists[0].name,
-                  coverUrl: track.album.images[0]?.url || '',
-                  rating: 4.5,
-                  spotifyUrl: track.external_urls.spotify,
-                  youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${track.name} ${track.artists[0].name}`)}`
-                }"
-              />
+              <MusicCard v-for="track in trendingMusic" :key="track.id" :music="{
+                id: track.id,
+                title: track.name,
+                artist: track.artists[0].name,
+                coverUrl: track.album.images[0]?.url || '',
+                rating: 4.5,
+                spotifyUrl: track.external_urls.spotify,
+                youtubeUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${track.name} ${track.artists[0].name}`)}`
+              }" />
             </div>
           </div>
         </div>
@@ -45,11 +41,7 @@
               {{ error.message }}
             </div>
             <div v-else class="trending-content">
-              <MovieCard
-                v-for="movie in trendingMovies"
-                :key="movie.id"
-                :movie="movie"
-              >
+              <MovieCard v-for="movie in trendingMovies" :key="movie.id" :movie="movie">
                 <div class="movie-details">
                   <h4>{{ movie.title }}</h4>
                   <p>{{ movie.release_date?.split('-')[0] }}</p>
@@ -96,8 +88,8 @@
 <script lang="ts">
 import MovieCard from '@/components/MovieCard.vue';
 import MusicCard from '@/components/MusicCard.vue';
-import type { SpotifyTrack } from '@/services/spotify';
-import { getTrendingMusic as getSpotifyTrending } from '@/services/spotify';
+import { spotifyAPI } from '@/api/spotify';
+import type { SpotifyTrack } from '@/api/spotify';
 import { getTrendingMovies as getTMDBTrending } from '@/services/tmdb';
 import type { Movie } from '@/types';
 import { defineComponent } from 'vue';
@@ -130,23 +122,27 @@ export default defineComponent({
     async fetchTrendingContent() {
       try {
         console.log('開始獲取熱門內容...');
-        
-        const [musicData, moviesData] = await Promise.all([
-          getSpotifyTrending(),
-          getTMDBTrending()
+
+        const [music, movies] = await Promise.all([
+          spotifyAPI.getTrendingMusic().catch(error => {
+            console.error('獲取熱門音樂失敗:', error);
+            return [] as SpotifyTrack[];
+          }),
+          getTMDBTrending().catch(error => {
+            console.error('獲取熱門電影失敗:', error);
+            return [] as Movie[];
+          })
         ]);
 
-        console.log('獲取到的音樂數據:', musicData);
-        console.log('獲取到的電影數據:', moviesData);
+        console.log('獲取到的音樂數據:', music);
+        console.log('獲取到的電影數據:', movies);
 
-        // 先限制電影數量為六部
-        this.trendingMovies = moviesData.slice(0, 6);
-        // 音樂數量與電影數量保持一致
-        this.trendingMusic = musicData.slice(0, this.trendingMovies.length);
+        this.trendingMusic = music;
+        this.trendingMovies = movies;
 
       } catch (error) {
         console.error('獲取熱門內容時發生錯誤:', error);
-        throw error;
+        // 不顯示錯誤提示，因為我們已經在各自的 API 調用中處理了錯誤
       }
     }
   }
@@ -204,7 +200,7 @@ export default defineComponent({
 
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .features {
@@ -269,7 +265,8 @@ h2 {
   gap: 2rem;
 }
 
-.trending-music, .trending-movies {
+.trending-music,
+.trending-movies {
   background: #f8f9fa;
   padding: 2rem;
   border-radius: 16px;
@@ -280,12 +277,14 @@ h2 {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.trending-music:hover, .trending-movies:hover {
+.trending-music:hover,
+.trending-movies:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
 }
 
-.trending-music h3, .trending-movies h3 {
+.trending-music h3,
+.trending-movies h3 {
   font-size: 1.5rem;
   color: #2c3e50;
   margin-bottom: 1.5rem;
@@ -317,7 +316,7 @@ h2 {
   align-items: center;
 }
 
-.trending-movies .trending-content > * {
+.trending-movies .trending-content>* {
   aspect-ratio: 2/3;
   width: 100%;
   max-width: 240px;
@@ -329,17 +328,17 @@ h2 {
   background: #fff;
 }
 
-.trending-movies .trending-content > *:hover {
+.trending-movies .trending-content>*:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
-.trending-movies .trending-content > *:hover .movie-details {
+.trending-movies .trending-content>*:hover .movie-details {
   opacity: 1;
   transform: translateY(0);
 }
 
-.trending-music .trending-content > * {
+.trending-music .trending-content>* {
   aspect-ratio: 1/1;
   width: 100%;
   max-width: 220px;
@@ -351,12 +350,12 @@ h2 {
   background: #fff;
 }
 
-.trending-music .trending-content > *:hover {
+.trending-music .trending-content>*:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
-.trending-music .trending-content > *:hover .music-details {
+.trending-music .trending-content>*:hover .music-details {
   opacity: 1;
   transform: translateY(0);
 }
@@ -422,9 +421,11 @@ h2 {
   0% {
     opacity: 0.6;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0.6;
   }
@@ -445,44 +446,55 @@ h2 {
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 @media (max-width: 768px) {
   .trending-grid {
     grid-template-columns: 1fr;
   }
-  
-  .trending-music, .trending-movies {
+
+  .trending-music,
+  .trending-movies {
     border-radius: 12px;
     padding: 1.5rem;
   }
-  
+
   .trending-content {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .trending-movies .trending-content {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, 1fr);
   }
-  
+
   .trending-music .trending-content {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, 1fr);
   }
-  
-  .trending-movies .trending-content > *,
-  .trending-music .trending-content > * {
+
+  .trending-movies .trending-content>*,
+  .trending-music .trending-content>* {
     border-radius: 8px;
   }
-  
+
   .hero {
     padding: 3rem 1rem;
   }
-  
+
   .hero h1 {
     font-size: 2rem;
   }
@@ -502,4 +514,4 @@ h2 {
     font-size: 0.8rem;
   }
 }
-</style> 
+</style>

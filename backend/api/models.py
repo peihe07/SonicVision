@@ -77,21 +77,46 @@ class Comment(models.Model):
             raise ValidationError("評論內容不能為空")
 
 class Playlist(models.Model):
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    cover = models.ImageField(upload_to='playlist_covers/', null=True, blank=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='playlists')
+    is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_public = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)
-    song_count = models.IntegerField(default=0)
+    spotify_id = models.CharField(max_length=255, blank=True, null=True)
+    cover_image = models.URLField(blank=True, null=True)
 
     class Meta:
-        ordering = ['-updated_at']
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.name} - {self.owner.username}"
+        return self.name
+
+class PlaylistTrack(models.Model):
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name='tracks')
+    track_id = models.CharField(max_length=255)  # Spotify track ID
+    added_at = models.DateTimeField(auto_now_add=True)
+    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='added_tracks')
+    position = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['position']
+        unique_together = ['playlist', 'track_id']
+
+    def __str__(self):
+        return f"{self.track_id} in {self.playlist.name}"
+
+class PlaylistCollaborator(models.Model):
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name='collaborators')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collaborated_playlists')
+    can_edit = models.BooleanField(default=True)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['playlist', 'user']
+
+    def __str__(self):
+        return f"{self.user.username} in {self.playlist.name}"
 
 class Watchlist(models.Model):
     name = models.CharField(max_length=200)
