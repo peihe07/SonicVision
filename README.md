@@ -8,27 +8,83 @@
 
 ### 音樂功能
 - Spotify 音樂搜索和預覽
+  - 即時搜索結果
+  - 音樂預覽播放
+  - 專輯封面顯示
+  - 藝術家資訊
 - 音樂播放列表管理
+  - 創建和編輯播放列表
+  - 添加/移除歌曲
+  - 播放列表封面自定義
+  - 播放列表分享
 - 音樂推薦系統
+  - 基於用戶喜好的推薦
+  - 熱門音樂推薦
+  - 新發行音樂推薦
 - 即時音樂分享
+  - 社交媒體分享
+  - 直接分享連結
+  - 嵌入播放器
 
 ### 電影功能
 - TMDB 電影搜索
+  - 即時搜索結果
+  - 電影海報顯示
+  - 詳細電影資訊
+  - 評分和評論
 - 觀看清單管理
+  - 創建和編輯清單
+  - 添加/移除電影
+  - 標記觀看狀態
+  - 清單分享
 - 電影推薦系統
+  - 基於用戶喜好的推薦
+  - 熱門電影推薦
+  - 即將上映電影
 - 電影評分和評論
+  - 用戶評分系統
+  - 評論功能
+  - 評論互動
 
 ### 社交功能
 - 用戶個人資料
+  - 個人資訊管理
+  - 頭像上傳
+  - 活動歷史
+  - 統計數據
 - 社群互動
+  - 貼文發布
+  - 評論功能
+  - 點讚系統
+  - 分享功能
 - 通知中心
+  - 即時通知
+  - 通知分類
+  - 已讀/未讀狀態
+  - 通知設置
 - 好友系統
+  - 用戶追蹤
+  - 好友列表
+  - 互動記錄
+  - 隱私設置
 
 ### 整合功能
 - Google 帳號登入
+  - OAuth2 認證
+  - 帳號連結
+  - 個人資料同步
 - Spotify 連結
+  - 帳號授權
+  - 播放列表同步
+  - 音樂收藏同步
 - YouTube 影片連結
+  - 電影預告片
+  - 音樂影片
+  - 嵌入播放
 - 個人化推薦
+  - 基於用戶行為
+  - 興趣分析
+  - 動態更新
 
 ## 技術棧
 
@@ -41,36 +97,43 @@
 
 ### 後端
 - Python 3.9+
-- Django 4.2
-- Django REST Framework
-- JWT 認證
+- Django 5.0.3
+- Django REST Framework 3.14.0
+- JWT 認證 (djangorestframework-simplejwt 5.3.0)
 - PostgreSQL (生產環境)
-- Spotify API 整合
+- Spotify API 整合 (spotipy 2.23.0)
 - TMDB API 整合
-- Google OAuth2
-- WebSocket 支援
+- Google OAuth2 (social-auth-app-django 5.4.0)
+- WebSocket 支援 (channels 4.0.0)
+- Channels Redis 4.2.0
+- Daphne 4.1.0
 
 ### 前端
-- Vue.js 3.4+
-- TypeScript 5.3+
-- Vite 5.1+ (構建工具)
-- Pinia 3.0+ (狀態管理)
-- Vue Router 4.2+
-- Vuetify 3.7+ (UI 框架)
-- Socket.IO Client 4.7+ (實時通訊)
-- Axios 1.6+
-- SASS/SCSS 1.71+
+- Vue.js 3.5.16
+- TypeScript 5.3.3
+- Vite 6.3.5 (構建工具)
+- Pinia 3.0.2 (狀態管理)
+- Vue Router 4.5.1
+- Vuetify 3.8.7 (UI 框架)
+- Socket.IO Client 4.7.4 (實時通訊)
+- Axios 1.9.0
+- SASS 1.89.1
+- Font Awesome 6.5.1
+- Material Design Icons 7.4.47
 
 ### 開發工具
 - Docker & Docker Compose
 - npm 9.0+
-- Black (Python 代碼格式化)
-- Flake8 (Python 代碼檢查)
-- isort (Python import 排序)
-- ESLint 8.56+ & TypeScript ESLint
-- Prettier 3.2+ (代碼格式化)
-- Vite Plugin Vuetify
-- Vite Plugin Compression
+- Black 23.7.0 (Python 代碼格式化)
+- Flake8 6.1.0 (Python 代碼檢查)
+- isort 5.12.0 (Python import 排序)
+- ESLint 9.28.0 & TypeScript ESLint
+- Prettier 3.2.5 (代碼格式化)
+- Vite Plugin Vuetify 2.0.0
+- Vite Plugin Compression 0.5.1
+- pytest 7.4.0 (測試框架)
+- pytest-django 4.5.2 (Django 測試)
+- pytest-cov 4.1.0 (測試覆蓋率)
 
 ## 快速開始
 
