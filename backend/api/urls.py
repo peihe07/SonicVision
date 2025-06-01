@@ -23,6 +23,8 @@ from .views import (
     refresh_token,
     PlaylistCoverUploadView,
     PlaylistShareView,
+    smart_playlist_list,
+    smart_playlist_detail,
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -54,6 +56,8 @@ urlpatterns = [
     path('playlists/<int:playlist_id>/share/', PlaylistShareView.as_view(), name='playlist-share'),
     path('playlists/share/<str:share_code>/', PlaylistShareView.as_view(), name='playlist-share-view'),
     path('spotify/new-releases/', spotify_new_releases, name='spotify-new-releases'),
+    path('smart-playlists/', smart_playlist_list, name='smart-playlist-list'),
+    path('smart-playlists/<int:pk>/', smart_playlist_detail, name='smart-playlist-detail'),
     path('', include(router.urls)),
 ]
 

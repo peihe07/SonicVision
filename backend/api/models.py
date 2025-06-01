@@ -135,3 +135,20 @@ class Watchlist(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.owner.username}"
+
+class SmartPlaylist(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='smart_playlists')
+    is_public = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    criteria = models.JSONField()  # 存儲播放列表生成條件
+    auto_update = models.BooleanField(default=True)
+    last_updated = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name

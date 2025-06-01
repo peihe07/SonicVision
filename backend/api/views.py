@@ -17,8 +17,8 @@ import logging
 import base64
 import requests
 import time
-from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator
-from .serializers import PostSerializer, CommentSerializer, PlaylistSerializer, WatchlistSerializer, PlaylistCreateSerializer, PlaylistTrackSerializer, PlaylistCollaboratorSerializer
+from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator, SmartPlaylist
+from .serializers import PostSerializer, CommentSerializer, PlaylistSerializer, WatchlistSerializer, PlaylistCreateSerializer, PlaylistTrackSerializer, PlaylistCollaboratorSerializer, SmartPlaylistSerializer, SmartPlaylistCreateSerializer
 from rest_framework import serializers
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -34,6 +34,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.utils.crypto import get_random_string
+from django.utils import timezone
 
 # 配置日誌
 logger = logging.getLogger(__name__)
@@ -1122,3 +1123,83 @@ class PlaylistShareView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def smart_playlist_list(request):
+    if request.method == 'GET':
+        playlists = SmartPlaylist.objects.filter(
+            Q(owner=request.user) | Q(is_public=True)
+        )
+        serializer = SmartPlaylistSerializer(playlists, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = SmartPlaylistCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            playlist = serializer.save(owner=request.user)
+            # 根據條件生成播放列表
+            update_smart_playlist(playlist)
+            return Response(SmartPlaylistSerializer(playlist).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def smart_playlist_detail(request, pk):
+    try:
+        playlist = SmartPlaylist.objects.get(pk=pk)
+    except SmartPlaylist.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SmartPlaylistSerializer(playlist)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        if playlist.owner != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        serializer = SmartPlaylistCreateSerializer(playlist, data=request.data)
+        if serializer.is_valid():
+            playlist = serializer.save()
+            # 更新播放列表內容
+            update_smart_playlist(playlist)
+            return Response(SmartPlaylistSerializer(playlist).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        if playlist.owner != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        playlist.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+def update_smart_playlist(playlist):
+    """
+    根據智能播放列表的條件更新其內容
+    """
+    try:
+        criteria = playlist.criteria
+        # 使用 Spotify API 根據條件搜索歌曲
+        tracks = spotify.search(
+            q=criteria.get('query', ''),
+            type='track',
+            limit=50,
+            market='TW'
+        )
+        
+        # 清空現有曲目
+        playlist.tracks.all().delete()
+        
+        # 添加新曲目
+        for track in tracks['tracks']['items']:
+            PlaylistTrack.objects.create(
+                playlist=playlist,
+                track_id=track['id'],
+                added_by=playlist.owner
+            )
+        
+        playlist.last_updated = timezone.now()
+        playlist.save()
+        
+    except Exception as e:
+        logger.error(f"更新智能播放列表失敗: {str(e)}")
+        raise

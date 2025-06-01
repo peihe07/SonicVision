@@ -71,6 +71,38 @@ export interface CreatePlaylistData {
     is_public?: boolean;
 }
 
+export interface SmartPlaylist {
+    id: number;
+    name: string;
+    description: string;
+    owner: {
+        id: number;
+        username: string;
+        email: string;
+    };
+    is_public: boolean;
+    created_at: string;
+    updated_at: string;
+    criteria: {
+        query: string;
+        [key: string]: any;
+    };
+    auto_update: boolean;
+    last_updated: string | null;
+    track_count: number;
+}
+
+export interface CreateSmartPlaylistData {
+    name: string;
+    description?: string;
+    is_public?: boolean;
+    criteria: {
+        query: string;
+        [key: string]: any;
+    };
+    auto_update?: boolean;
+}
+
 export const playlistAPI = {
     // 獲取播放列表列表
     getPlaylists: async () => {
@@ -170,4 +202,35 @@ export const playlistAPI = {
         const response = await api.get<Playlist>(`/api/playlists/share/${shareCode}/`);
         return response.data;
     },
+};
+
+export const smartPlaylistAPI = {
+    // 獲取智能播放列表列表
+    getSmartPlaylists: async () => {
+        const response = await api.get<SmartPlaylist[]>('/api/smart-playlists/');
+        return response.data;
+    },
+
+    // 獲取單個智能播放列表
+    getSmartPlaylist: async (id: number) => {
+        const response = await api.get<SmartPlaylist>(`/api/smart-playlists/${id}/`);
+        return response.data;
+    },
+
+    // 創建智能播放列表
+    createSmartPlaylist: async (data: CreateSmartPlaylistData) => {
+        const response = await api.post<SmartPlaylist>('/api/smart-playlists/', data);
+        return response.data;
+    },
+
+    // 更新智能播放列表
+    updateSmartPlaylist: async (id: number, data: Partial<CreateSmartPlaylistData>) => {
+        const response = await api.put<SmartPlaylist>(`/api/smart-playlists/${id}/`, data);
+        return response.data;
+    },
+
+    // 刪除智能播放列表
+    deleteSmartPlaylist: async (id: number) => {
+        await api.delete(`/api/smart-playlists/${id}/`);
+    }
 }; 

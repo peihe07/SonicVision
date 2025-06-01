@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator
+from .models import Post, Comment, Playlist, Watchlist, PlaylistTrack, PlaylistCollaborator, SmartPlaylist
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -97,4 +97,30 @@ class WatchlistSerializer(serializers.ModelSerializer):
     def get_coverUrl(self, obj):
         if obj.cover:
             return self.context['request'].build_absolute_uri(obj.cover.url)
-        return None 
+        return None
+
+class SmartPlaylistSerializer(serializers.ModelSerializer):
+    owner = UserSerializer(read_only=True)
+    track_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SmartPlaylist
+        fields = [
+            'id', 'name', 'description', 'owner', 'is_public',
+            'created_at', 'updated_at', 'criteria', 'auto_update',
+            'last_updated', 'track_count'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'owner', 'last_updated']
+
+    def get_track_count(self, obj):
+        return obj.tracks.count()
+
+class SmartPlaylistCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SmartPlaylist
+        fields = ['name', 'description', 'is_public', 'criteria', 'auto_update']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        playlist = SmartPlaylist.objects.create(owner=user, **validated_data)
+        return playlist 
