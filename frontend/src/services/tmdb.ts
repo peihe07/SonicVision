@@ -52,7 +52,7 @@ interface TMDBResponse {
     page: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sonicvision.uno';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno';
 
 const tmdbClient = axios.create({
     baseURL: API_BASE_URL,

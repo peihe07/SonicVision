@@ -42,6 +42,12 @@ CORS_ALLOW_HEADERS = [
 # 允許憑證
 CORS_ALLOW_CREDENTIALS = True
 
+# 允許的 CORS 來源模式
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.sonicvision\.uno$",
+    r"^https://.*\.vercel\.app$",
+]
+
 # CSRF 設置
 CSRF_TRUSTED_ORIGINS = [
     "https://sonicvision.uno",
