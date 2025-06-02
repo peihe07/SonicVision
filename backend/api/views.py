@@ -39,6 +39,13 @@ from django.utils import timezone
 # 配置日誌
 logger = logging.getLogger(__name__)
 
+def generate_access_token(user):
+    """
+    生成 JWT access token
+    """
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token)
+
 load_dotenv()
 
 # 檢查環境變數
