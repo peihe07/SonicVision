@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import api_view, action, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -32,7 +33,6 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from django.utils.crypto import get_random_string
 from django.utils import timezone
 
