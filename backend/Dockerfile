@@ -31,4 +31,4 @@ ENV DJANGO_SETTINGS_MODULE=config.settings
 EXPOSE 8000
 
 # 啟動命令
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--log-level", "debug", "--access-logfile", "/var/log/sonicvision/access.log", "--error-logfile", "/var/log/sonicvision/error.log", "--worker-class", "gunicorn.workers.sync.SyncWorker"] 
+CMD ["gunicorn", "config.wsgi:application", "-c", "gunicorn.conf.py"] 

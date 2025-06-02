@@ -5,15 +5,15 @@ import os
 workers = multiprocessing.cpu_count() * 2 + 1
 
 # 綁定地址
-bind = "unix:/run/sonicvision.sock"
+bind = "0.0.0.0:8000"
 
 # 工作模式
-worker_class = "uvicorn.workers.UvicornWorker"
+worker_class = "sync"
 
 # 日誌設置
 accesslog = "/var/log/sonicvision/access.log"
 errorlog = "/var/log/sonicvision/error.log"
-loglevel = "info"
+loglevel = "debug"
 
 # 進程名稱
 proc_name = "sonicvision"
@@ -31,6 +31,7 @@ graceful_timeout = 120
 
 # 預加載應用
 preload_app = True
+reload = True
 
 def on_starting(server):
     """
