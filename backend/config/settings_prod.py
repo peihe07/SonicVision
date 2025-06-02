@@ -16,6 +16,32 @@ CORS_ALLOWED_ORIGINS = [
     "https://sonicvision-zeta.vercel.app",
 ]
 
+# 允許的 CORS 方法
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# 允許的 CORS 標頭
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# 允許憑證
+CORS_ALLOW_CREDENTIALS = True
+
 # CSRF 設置
 CSRF_TRUSTED_ORIGINS = [
     "https://sonicvision.uno",
