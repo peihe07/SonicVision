@@ -5,7 +5,7 @@ const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID
 const SPOTIFY_CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno',
     headers: {
         'Content-Type': 'application/json',
     }
@@ -61,7 +61,7 @@ export interface SpotifySearchResponse {
 export const spotifyAPI = {
     // 搜索歌曲
     searchTracks: async (query: string): Promise<SpotifyTrack[]> => {
-        const response = await api.get<SpotifySearchResponse>('/api/spotify/search/', {
+        const response = await api.get<SpotifySearchResponse>('/spotify/search/', {
             params: {
                 q: query,
                 type: 'track'
@@ -72,14 +72,14 @@ export const spotifyAPI = {
 
     // 獲取歌曲預覽 URL
     getPreviewUrl: async (trackId: string): Promise<string> => {
-        const response = await api.get<{ preview_url: string }>(`/api/spotify/preview/${trackId}/`);
+        const response = await api.get<{ preview_url: string }>(`/spotify/preview/${trackId}/`);
         return response.data.preview_url;
     },
 
     // 獲取熱門音樂
     getTrendingMusic: async (): Promise<SpotifyTrack[]> => {
         try {
-            const response = await api.get<SpotifyTrack[]>('/api/spotify/new-releases/');
+            const response = await api.get<SpotifyTrack[]>('/spotify/new-releases/');
             if (!response.data || !Array.isArray(response.data)) {
                 console.error('獲取熱門音樂失敗：無效的回應格式');
                 return [];
