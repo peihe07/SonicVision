@@ -145,9 +145,9 @@
    ./dev.sh
    ```
 3. 訪問：
-   - 前端：http://localhost:8080
-   - 後端 API：http://localhost:8000
-   - API 文檔：http://localhost:8000/api/docs/
+   - 前端：https://sonicvision.uno
+   - 後端 API：https://sonicvision.uno/api
+   - API 文檔：https://sonicvision.uno/api/docs/
 
 ### 使用 Docker
 
@@ -162,58 +162,50 @@
    docker-compose up -d
    ```
 4. 訪問：
-   - 前端：http://localhost:8080
-   - 後端 API：http://localhost:8000
-   - API 文檔：http://localhost:8000/api/docs/
+   - 前端：https://sonicvision.uno
+   - 後端 API：https://sonicvision.uno/api
+   - API 文檔：https://sonicvision.uno/api/docs/
 
 ### 本地開發
 
-#### 後端設置
-1. 進入後端目錄：
+1. 後端開發：
    ```bash
    cd backend
-   ```
-2. 創建虛擬環境：
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Linux/Mac
-   # 或
-   .venv\Scripts\activate  # Windows
-   ```
-3. 安裝依賴：
-   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
-   ```
-4. 設置環境變數：
-   ```bash
-   cp .env.example .env
-   ```
-5. 運行遷移：
-   ```bash
    python manage.py migrate
-   ```
-6. 啟動開發服務器：
-   ```bash
    python manage.py runserver
    ```
 
-#### 前端設置
-1. 進入前端目錄：
+2. 前端開發：
    ```bash
    cd frontend
-   ```
-2. 設置環境變數：
-   ```bash
-   cp .env.example .env
-   ```
-3. 安裝依賴：
-   ```bash
    npm install
-   ```
-4. 啟動開發服務器：
-   ```bash
    npm run dev
    ```
+
+3. 訪問：
+   - 前端：https://sonicvision.uno
+   - 後端 API：https://sonicvision.uno/api
+   - API 文檔：https://sonicvision.uno/api/docs/
+
+## 環境變數配置
+
+### 後端環境變數 (.env)
+```
+DEBUG=False
+SECRET_KEY=your-secret-key
+ALLOWED_HOSTS=sonicvision.uno
+CORS_ALLOWED_ORIGINS=https://sonicvision.uno
+DATABASE_URL=postgres://user:password@localhost:5432/sonicvision
+```
+
+### 前端環境變數 (.env)
+```
+VITE_API_URL=https://sonicvision.uno/api
+VITE_WS_URL=wss://sonicvision.uno/ws
+```
 
 ## 貢獻指南
 
@@ -547,3 +539,42 @@
      <router-view></router-view>
    </keep-alive>
    ```
+
+## API 文檔
+
+API 文檔使用 Swagger UI 提供，可以通過以下方式訪問：
+
+- 生產環境：https://sonicvision.uno/api/docs/
+- 開發環境：https://sonicvision.uno/api/docs/
+
+API 文檔包含：
+- 所有可用的 API 端點
+- 請求/響應格式
+- 認證要求
+- 示例請求
+
+## 部署
+
+### 使用 Docker Compose 部署
+
+1. 克隆倉庫：
+   ```bash
+   git clone https://github.com/yourusername/sonicvision.git
+   cd sonicvision
+   ```
+
+2. 配置環境變數：
+   ```bash
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   ```
+
+3. 啟動服務：
+   ```bash
+   docker-compose up -d
+   ```
+
+4. 訪問：
+   - 前端：https://sonicvision.uno
+   - 後端 API：https://sonicvision.uno/api
+   - API 文檔：https://sonicvision.uno/api/docs/
