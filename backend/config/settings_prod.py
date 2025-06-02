@@ -13,6 +13,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://www.sonicvision.uno",
     "https://api.sonicvision.uno",
     "https://sonicvision-git-version5-peiyus-projects-d68d7d18.vercel.app",
+    "https://sonicvision-zeta.vercel.app",
 ]
 
 # CSRF 設置
@@ -21,6 +22,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.sonicvision.uno",
     "https://api.sonicvision.uno",
     "https://sonicvision-git-version5-peiyus-projects-d68d7d18.vercel.app",
+    "https://sonicvision-zeta.vercel.app",
 ]
 
 # 資料庫設置
