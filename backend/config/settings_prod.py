@@ -5,7 +5,7 @@ DEBUG = False
 DEVELOPMENT = False
 
 # 不允許所有網域訪問 API
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 # 允許的 CORS 來源（正式環境）
 CORS_ALLOWED_ORIGINS = [
