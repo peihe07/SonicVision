@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // 設置 axios 默認配置
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'https://api.sonicvision.uno/api'
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 axios.defaults.headers.common['Accept'] = 'application/json'
 

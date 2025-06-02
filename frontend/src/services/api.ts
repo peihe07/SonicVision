@@ -10,7 +10,7 @@ interface ErrorResponse {
     [key: string]: string | number | boolean | null | undefined;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sonicvision.uno/api';
 
 // 創建 axios 實例
 export const apiClient = axios.create({
