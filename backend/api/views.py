@@ -1203,3 +1203,32 @@ def update_smart_playlist(playlist):
     except Exception as e:
         logger.error(f"更新智能播放列表失敗: {str(e)}")
         raise
+
+# 健康檢查端點
+@api_view(['GET'])
+@permission_classes([])
+def health_check(request):
+    try:
+        # 檢查數據庫連接
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        
+        # 檢查 Redis 連接
+        from django.core.cache import cache
+        cache.set('health_check', 'ok', 1)
+        cache.get('health_check')
+        
+        return Response({
+            'status': 'healthy',
+            'database': 'connected',
+            'cache': 'connected',
+            'timestamp': timezone.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"健康檢查失敗: {str(e)}")
+        return Response({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

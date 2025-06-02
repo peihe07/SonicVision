@@ -25,6 +25,7 @@ from .views import (
     PlaylistShareView,
     smart_playlist_list,
     smart_playlist_detail,
+    health_check,
 )
 from rest_framework.routers import DefaultRouter
 from django.conf.urls import handler404, handler500
@@ -36,6 +37,7 @@ router.register(r'playlists', PlaylistViewSet, basename='playlist')
 router.register(r'watchlists', WatchlistViewSet, basename='watchlist')
 
 urlpatterns = [
+    path('health/', health_check, name='health_check'),
     path('auth/register/', register_user, name='register'),
     path('auth/csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
