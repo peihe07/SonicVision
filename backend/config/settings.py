@@ -28,6 +28,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
+    '172.20.0.4',
+    'sonicvision-backend',
     '.ondigitalocean.app',  # DigitalOcean 域名
     'sonicvision.uno',
     'www.sonicvision.uno',
