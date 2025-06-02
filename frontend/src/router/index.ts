@@ -95,6 +95,12 @@ const routes: Array<RouteRecordRaw> = [
             title: 'TMDB 推薦片單',
             requiresAuth: false
         }
+    },
+    {
+        path: '/spotify-callback',
+        name: 'SpotifyCallback',
+        component: () => import('@/pages/SpotifyCallbackPage.vue'),
+        meta: { requiresAuth: false }
     }
 ];
 

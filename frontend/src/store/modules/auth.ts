@@ -8,6 +8,7 @@ import type {
     ProfileUpdateData
 } from '@/types/api';
 import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
 
 interface GoogleLoginResponse {
     token: string;
@@ -15,181 +16,204 @@ interface GoogleLoginResponse {
     user: ApiUser;
 }
 
-export const useAuthStore = defineStore('auth', {
-    state: () => ({
-        user: null as ApiUser | null,
-        error: null as string | null,
-        accessToken: localStorage.getItem('access_token') || null,
-        refreshToken: localStorage.getItem('refresh_token') || null
-    }),
+export const useAuthStore = defineStore('auth', () => {
+    const user = ref<ApiUser | null>(null);
+    const error = ref<string | null>(null);
+    const accessToken = ref<string | null>(null);
+    const refreshToken = ref<string | null>(null);
 
-    getters: {
-        isAuthenticated: (state) => !!state.user && !!state.accessToken
-    },
+    const isAuthenticated = computed(() => !!user.value && !!accessToken.value);
 
-    actions: {
-        setUser(user: ApiUser) {
-            this.user = user;
-        },
+    const setUser = (user: ApiUser) => {
+        user.value = user;
+    };
 
-        setAccessToken(token: string) {
-            this.accessToken = token;
-            localStorage.setItem('access_token', token);
-        },
+    const setAccessToken = (token: string) => {
+        accessToken.value = token;
+        localStorage.setItem('access_token', token);
+    };
 
-        setRefreshToken(token: string) {
-            this.refreshToken = token;
-            localStorage.setItem('refresh_token', token);
-        },
+    const setRefreshToken = (token: string) => {
+        refreshToken.value = token;
+        localStorage.setItem('refresh_token', token);
+    };
 
-        clearTokens() {
-            this.accessToken = null;
-            this.refreshToken = null;
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-        },
+    const clearTokens = () => {
+        accessToken.value = null;
+        refreshToken.value = null;
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+    };
 
-        async login(credentials: LoginCredentials) {
-            this.error = null;
-            try {
-                const response = await authAPI.login(credentials);
-                if (response.data.access) {
-                    this.setAccessToken(response.data.access);
-                }
-                if (response.data.refresh) {
-                    this.setRefreshToken(response.data.refresh);
-                }
-                if (response.data.user) {
-                    this.setUser(response.data.user);
-                }
-            } catch (error) {
-                this.error = error instanceof Error ? error.message : '登入失敗';
-                throw error;
+    const login = async (credentials: LoginCredentials) => {
+        error.value = null;
+        try {
+            const response = await authAPI.login(credentials);
+            if (response.data.access) {
+                setAccessToken(response.data.access);
             }
-        },
-
-        async register(userData: { username: string; email: string; password: string }) {
-            this.error = null;
-            try {
-                const response = await authAPI.register(userData);
-                if (response.data.access) {
-                    this.setAccessToken(response.data.access);
-                }
-                if (response.data.refresh) {
-                    this.setRefreshToken(response.data.refresh);
-                }
-                if (response.data.user) {
-                    this.setUser(response.data.user);
-                }
-            } catch (error) {
-                this.error = error instanceof Error ? error.message : '註冊失敗';
-                throw error;
+            if (response.data.refresh) {
+                setRefreshToken(response.data.refresh);
             }
-        },
-
-        async logout() {
-            try {
-                await authAPI.logout();
-                this.clearTokens();
-                this.user = null;
-            } catch (error) {
-                console.error('登出失敗:', error);
-                throw error;
+            if (response.data.user) {
+                setUser(response.data.user);
             }
-        },
-
-        async checkAuth() {
-            try {
-                const user = await authAPI.getProfile();
-                this.setUser(user);
-            } catch (error) {
-                this.user = null;
-            }
-        },
-
-        async fetchUserProfile() {
-            try {
-                const user = await authAPI.getProfile();
-                this.setUser(user);
-            } catch (error) {
-                this.user = null;
-                throw error;
-            }
-        },
-
-        async updateProfile(profileData: ProfileUpdateData) {
-            this.error = null;
-            try {
-                const updatedUser = await authAPI.updateProfile(profileData);
-                this.setUser(updatedUser);
-            } catch (error) {
-                this.error = '更新個人資料失敗';
-                throw error;
-            }
-        },
-
-        async googleLogin(code: string) {
-            this.error = null;
-            try {
-                const response = await authAPI.googleLogin(code);
-                const data = response.data as GoogleLoginResponse;
-                this.setUser(data.user);
-            } catch (error) {
-                this.error = '使用 Google 登入失敗';
-                throw error;
-            }
-        },
-
-        async updatePassword(passwordData: PasswordUpdateData) {
-            this.error = null;
-            try {
-                await authAPI.updatePassword(passwordData);
-            } catch (error) {
-                this.error = '更新密碼失敗';
-                throw error;
-            }
-        },
-
-        async updateNotificationSettings(settings: NotificationSettings) {
-            this.error = null;
-            try {
-                await authAPI.updateNotificationSettings(settings);
-            } catch (error) {
-                this.error = '更新通知設定失敗';
-                throw error;
-            }
-        },
-
-        async updatePrivacySettings(settings: PrivacySettings) {
-            this.error = null;
-            try {
-                await authAPI.updatePrivacySettings(settings);
-            } catch (error) {
-                this.error = '更新隱私設定失敗';
-                throw error;
-            }
-        },
-
-        async deactivateAccount() {
-            this.error = null;
-            try {
-                await authAPI.deactivateAccount();
-                this.user = null;
-            } catch (error) {
-                this.error = '停用帳號失敗';
-                throw error;
-            }
-        },
-
-        async deleteAccount() {
-            this.error = null;
-            try {
-                await authAPI.deleteAccount();
-                this.user = null;
-            } catch (error) {
-                this.error = '刪除帳號失敗';
-                throw error;
-            }
+        } catch (error) {
+            error.value = error instanceof Error ? error.message : '登入失敗';
+            throw error;
         }
-    }
+    };
+
+    const register = async (userData: { username: string; email: string; password: string }) => {
+        error.value = null;
+        try {
+            const response = await authAPI.register(userData);
+            if (response.data.access) {
+                setAccessToken(response.data.access);
+            }
+            if (response.data.refresh) {
+                setRefreshToken(response.data.refresh);
+            }
+            if (response.data.user) {
+                setUser(response.data.user);
+            }
+        } catch (error) {
+            error.value = error instanceof Error ? error.message : '註冊失敗';
+            throw error;
+        }
+    };
+
+    const logout = async () => {
+        try {
+            await authAPI.logout();
+            clearTokens();
+            user.value = null;
+        } catch (error) {
+            console.error('登出失敗:', error);
+            throw error;
+        }
+    };
+
+    const checkAuth = async () => {
+        try {
+            const user = await authAPI.getProfile();
+            setUser(user);
+        } catch (error) {
+            user.value = null;
+        }
+    };
+
+    const fetchUserProfile = async () => {
+        try {
+            const user = await authAPI.getProfile();
+            setUser(user);
+        } catch (error) {
+            user.value = null;
+            throw error;
+        }
+    };
+
+    const updateProfile = async (profileData: ProfileUpdateData) => {
+        error.value = null;
+        try {
+            const updatedUser = await authAPI.updateProfile(profileData);
+            setUser(updatedUser);
+        } catch (error) {
+            error.value = '更新個人資料失敗';
+            throw error;
+        }
+    };
+
+    const googleLogin = async (code: string) => {
+        error.value = null;
+        try {
+            const response = await authAPI.googleLogin(code);
+            const data = response.data as GoogleLoginResponse;
+            setUser(data.user);
+        } catch (error) {
+            error.value = '使用 Google 登入失敗';
+            throw error;
+        }
+    };
+
+    const updatePassword = async (passwordData: PasswordUpdateData) => {
+        error.value = null;
+        try {
+            await authAPI.updatePassword(passwordData);
+        } catch (error) {
+            error.value = '更新密碼失敗';
+            throw error;
+        }
+    };
+
+    const updateNotificationSettings = async (settings: NotificationSettings) => {
+        error.value = null;
+        try {
+            await authAPI.updateNotificationSettings(settings);
+        } catch (error) {
+            error.value = '更新通知設定失敗';
+            throw error;
+        }
+    };
+
+    const updatePrivacySettings = async (settings: PrivacySettings) => {
+        error.value = null;
+        try {
+            await authAPI.updatePrivacySettings(settings);
+        } catch (error) {
+            error.value = '更新隱私設定失敗';
+            throw error;
+        }
+    };
+
+    const deactivateAccount = async () => {
+        error.value = null;
+        try {
+            await authAPI.deactivateAccount();
+            user.value = null;
+        } catch (error) {
+            error.value = '停用帳號失敗';
+            throw error;
+        }
+    };
+
+    const deleteAccount = async () => {
+        error.value = null;
+        try {
+            await authAPI.deleteAccount();
+            user.value = null;
+        } catch (error) {
+            error.value = '刪除帳號失敗';
+            throw error;
+        }
+    };
+
+    const handleSpotifyAuth = async () => {
+        try {
+            await fetchUserProfile();
+        } catch (e) {
+            console.error('處理 Spotify 授權時發生錯誤:', e);
+            throw e;
+        }
+    };
+
+    return {
+        user,
+        error,
+        accessToken,
+        refreshToken,
+        isAuthenticated,
+        login,
+        logout,
+        register,
+        fetchUserProfile,
+        updateProfile,
+        googleLogin,
+        updatePassword,
+        updateNotificationSettings,
+        updatePrivacySettings,
+        deactivateAccount,
+        deleteAccount,
+        handleSpotifyAuth
+    };
 }); 
