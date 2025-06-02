@@ -1,7 +1,6 @@
 asgiref==3.8.1
 attrs==25.3.0
 autobahn==24.4.2
-autoenv==1.0.0
 Automat==25.4.16
 black==25.1.0
 cachetools==5.5.2

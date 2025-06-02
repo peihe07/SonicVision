@@ -41,8 +41,10 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
+    "https://api.sonicvision.uno",
     "http://sonicvision.uno",
     "http://www.sonicvision.uno",
+    "http://api.sonicvision.uno",
 ]
 
 # 允許跨域發送 Cookie
@@ -72,6 +74,7 @@ CORS_ALLOW_HEADERS = [
     'access-control-allow-origin',
     'access-control-allow-headers',
     'access-control-allow-methods',
+    'access-control-allow-credentials',
 ]
 
 # REST Framework 配置

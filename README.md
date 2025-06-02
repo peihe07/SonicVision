@@ -205,7 +205,7 @@ DATABASE_URL=postgres://user:password@localhost:5432/sonicvision
 ```
 VITE_API_URL=https://sonicvision.uno/api
 VITE_WS_URL=wss://sonicvision.uno/ws
-```
+   ```
 
 ## 貢獻指南
 
