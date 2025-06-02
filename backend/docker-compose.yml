@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: sonicvision-backend
+    restart: always
+    ports:
+      - "8002:8000"  # 使用 8002 端口避免衝突
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15-alpine
+    container_name: sonicvision-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 使用 5433 端口避免衝突
+
+  redis:
+    image: redis:7-alpine
+    container_name: sonicvision-redis
+    restart: always
+    ports:
+      - "6380:6379"  # 使用 6380 端口避免衝突
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: sonicvision-nginx
+    restart: always
+    ports:
+      - "8080:80"  # 使用 8080 端口避免衝突
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data: 
