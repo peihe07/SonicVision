@@ -1239,3 +1239,40 @@ def health_check(request):
             'error': str(e),
             'timestamp': timezone.now().isoformat()
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def tmdb_trending_movies(request):
+    """
+    獲取 TMDB 熱門電影
+    """
+    try:
+        api_key = os.getenv('TMDB_API_KEY')
+        if not api_key:
+            return Response(
+                {'error': 'TMDB API key not configured'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        url = f'https://api.themoviedb.org/3/trending/movie/week'
+        params = {
+            'api_key': api_key,
+            'language': 'zh-TW'
+        }
+
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+
+        data = response.json()
+        return Response(data)
+
+    except requests.RequestException as e:
+        return Response(
+            {'error': f'Error fetching trending movies: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Unexpected error: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
