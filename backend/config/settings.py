@@ -10,7 +10,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 判斷是否為開發環境
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 DEVELOPMENT = DEBUG
 
 # 添加前端構建文件的路徑
@@ -23,17 +23,19 @@ else:
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4w%fs14ztb!^l!o#10r*&vj=#'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4w%fs14ztb!^l!o#10r*&vj=#')
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.ondigitalocean.app',  # DigitalOcean 域名
+    'sonicvision.uno',
+    'www.sonicvision.uno',
     os.environ.get('ALLOWED_HOST', ''),
 ]
 
 # 允許所有網域訪問 API（開發模式用，正式環境請設定特定來源）
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # 允許 Vue.js 向 Django 發送請求
 CORS_ALLOWED_ORIGINS = [
@@ -43,6 +45,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:8083",
     "http://127.0.0.1:8083",
+    "https://sonicvision.uno",
+    "https://www.sonicvision.uno",
 ]
 
 # 允許跨域發送 Cookie
@@ -100,17 +104,19 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:8083",
     "http://127.0.0.1:8083",
+    "https://sonicvision.uno",
+    "https://www.sonicvision.uno",
 ]
 
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
-CSRF_COOKIE_SECURE = False  # 開發環境設為 False
-CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = not DEBUG  # 生產環境設為 True
+CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = False
 
 # Session 設置
-SESSION_COOKIE_SECURE = False  # 開發環境設為 False
+SESSION_COOKIE_SECURE = not DEBUG  # 生產環境設為 True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Application definition
@@ -246,19 +252,24 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': '/var/log/sonicvision/error.log',
+            'formatter': 'verbose',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'api': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },

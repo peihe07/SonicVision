@@ -7,24 +7,47 @@ services:
     restart: always
     ports:
       - "8002:8000"  # 使用 8002 端口避免衝突
-    env_file:
-      - .env
+    volumes:
+      - .:/app
+      - ../frontend:/frontend
+      - /var/log/sonicvision:/var/log/sonicvision
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=sonicvision
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - PYTHONUNBUFFERED=1
+      - DEBUG=True
     depends_on:
       - db
       - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    tty: true
+    stdin_open: true
 
   db:
     image: postgres:15-alpine
     container_name: sonicvision-db
     restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      - POSTGRES_DB=sonicvision
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"  # 使用 5433 端口避免衝突
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
@@ -32,6 +55,11 @@ services:
     restart: always
     ports:
       - "6380:6379"  # 使用 6380 端口避免衝突
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.25-alpine
@@ -43,6 +71,11 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data: 

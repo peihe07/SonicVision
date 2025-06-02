@@ -97,7 +97,7 @@ class WatchlistSerializer(serializers.ModelSerializer):
     def get_coverUrl(self, obj):
         if obj.cover:
             return self.context['request'].build_absolute_uri(obj.cover.url)
-        return None
+        return None 
 
 class SmartPlaylistSerializer(serializers.ModelSerializer):
     owner = UserSerializer(read_only=True)
