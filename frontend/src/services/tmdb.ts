@@ -52,54 +52,24 @@ interface TMDBResponse {
     page: number;
 }
 
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sonicvision.uno';
 
 const tmdbClient = axios.create({
-    baseURL: TMDB_BASE_URL,
-    params: {
-        api_key: TMDB_API_KEY,
-        language: 'zh-TW'
-    },
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     }
 });
 
-// 添加請求攔截器
-tmdbClient.interceptors.request.use(
-    (config) => {
-        // 確保每個請求都帶有 API key
-        if (!config.params) {
-            config.params = {};
-        }
-        config.params.api_key = TMDB_API_KEY;
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
-
-// 添加響應攔截器
-tmdbClient.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        console.error('TMDB API 錯誤:', error.response?.data || error.message);
-        return Promise.reject(error);
-    }
-);
-
 export const getTrendingMovies = async (): Promise<Movie[]> => {
     try {
-        const response = await tmdbClient.get<TMDBResponse>('/trending/movie/week');
+        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/trending-movies/');
         return response.data.results.map(movie => ({
             id: movie.id,
             title: movie.title,
             overview: movie.overview,
-            posterPath: movie.poster_path ? `${TMDB_IMAGE_BASE_URL}/w500${movie.poster_path}` : '/images/no-poster.png',
+            posterPath: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '/images/no-poster.png',
             releaseDate: movie.release_date,
             voteAverage: movie.vote_average
         }));
@@ -111,7 +81,7 @@ export const getTrendingMovies = async (): Promise<Movie[]> => {
 
 export const searchMovies = async (query: string, page = 1): Promise<{ results: Movie[]; total_pages: number }> => {
     try {
-        const response = await tmdbClient.get<TMDBResponse>('/search/movie', {
+        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/search-movies/', {
             params: { query, page }
         });
         return {
@@ -119,7 +89,7 @@ export const searchMovies = async (query: string, page = 1): Promise<{ results: 
                 id: movie.id,
                 title: movie.title,
                 overview: movie.overview,
-                posterPath: movie.poster_path ? `${TMDB_IMAGE_BASE_URL}/w500${movie.poster_path}` : '/images/no-poster.png',
+                posterPath: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '/images/no-poster.png',
                 releaseDate: movie.release_date,
                 voteAverage: movie.vote_average
             })),
@@ -133,7 +103,7 @@ export const searchMovies = async (query: string, page = 1): Promise<{ results: 
 
 export const getImageUrl = (path: string, size = 'original'): string => {
     if (!path) return '/images/no-poster.png';
-    return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
+    return `https://image.tmdb.org/t/p/${size}${path}`;
 };
 
 export const getMovieGenres = async (): Promise<TMDBGenre[]> => {
