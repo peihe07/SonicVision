@@ -26,8 +26,6 @@ else:
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-=*8km8$!v-0t*uns&q=!f%-up4w%fs14ztb!^l!o#10r*&vj=#')
 
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
     '172.20.0.4',
     'sonicvision-backend',
     '.ondigitalocean.app',  # DigitalOcean 域名
@@ -41,14 +39,10 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # 允許 Vue.js 向 Django 發送請求
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8083",
-    "http://127.0.0.1:8083",
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
+    "http://sonicvision.uno",
+    "http://www.sonicvision.uno",
 ]
 
 # 允許跨域發送 Cookie
@@ -75,6 +69,9 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'access-control-allow-origin',
+    'access-control-allow-headers',
+    'access-control-allow-methods',
 ]
 
 # REST Framework 配置
@@ -100,14 +97,10 @@ SIMPLE_JWT = {
 
 # CSRF 設置
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8083",
-    "http://127.0.0.1:8083",
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
+    "http://sonicvision.uno",
+    "http://www.sonicvision.uno",
 ]
 
 CSRF_COOKIE_NAME = 'csrftoken'
@@ -197,7 +190,7 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME', 'sonicvision'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'HOST': os.getenv('DB_HOST', 'db'),
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
@@ -326,7 +319,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [(os.getenv('REDIS_HOST', 'redis'), int(os.getenv('REDIS_PORT', 6379)))],
         },
     },
 }
