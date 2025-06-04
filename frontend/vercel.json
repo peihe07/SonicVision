@@ -25,7 +25,7 @@
         }
     ],
     "env": {
-        "VITE_API_BASE_URL": "https://sonicvision.uno/api",
-        "VITE_WS_BASE_URL": "wss://sonicvision.uno/ws"
+        "VITE_API_BASE_URL": "https://api.sonicvision.uno",
+        "VITE_WS_BASE_URL": "wss://api.sonicvision.uno/ws"
     }
 }
