@@ -1221,23 +1221,8 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
         
-        # 檢查 Redis 連接
-        from django.core.cache import cache
-        cache.set('health_check', 'ok', 1)
-        cache.get('health_check')
-        
-        # 檢查 Spotify API
-        spotify_status = "ok" if spotify else "error"
-        
-        # 檢查 TMDB API
-        tmdb_status = "ok" if settings.TMDB_API_KEY else "error"
-        
         return Response({
             'status': 'healthy',
-            'database': 'connected',
-            'cache': 'connected',
-            'spotify_api': spotify_status,
-            'tmdb_api': tmdb_status,
             'timestamp': timezone.now().isoformat()
         })
     except Exception as e:

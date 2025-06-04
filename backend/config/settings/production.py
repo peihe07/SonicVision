@@ -1,4 +1,4 @@
-from .settings import *
+from .base import *
 
 # 正式環境特定設定
 DEBUG = False
@@ -60,19 +60,19 @@ CSRF_TRUSTED_ORIGINS = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
 # 靜態文件設置
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = '/var/www/sonicvision/staticfiles'
 STATICFILES_DIRS = [
-    FRONTEND_DIR,
+    BASE_DIR.parent / 'frontend' / 'dist',
 ]
 
 # 使用 WhiteNoise 處理靜態文件
@@ -90,8 +90,33 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 # 允許的主機
-ALLOWED_HOSTS = [
-    'sonicvision.uno',
-    'www.sonicvision.uno',
-    'api.sonicvision.uno',
-] 
+ALLOWED_HOSTS = ['*']
+
+# 日誌設置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': '/var/log/sonicvision/error.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
+
+MEDIA_ROOT = '/var/www/sonicvision/media' 
