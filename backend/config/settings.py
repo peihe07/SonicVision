@@ -42,9 +42,6 @@ CORS_ALLOWED_ORIGINS = [
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
     "https://api.sonicvision.uno",
-    "http://sonicvision.uno",
-    "http://www.sonicvision.uno",
-    "http://api.sonicvision.uno",
 ]
 
 # 允許跨域發送 Cookie
@@ -102,8 +99,7 @@ SIMPLE_JWT = {
 CSRF_TRUSTED_ORIGINS = [
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
-    "http://sonicvision.uno",
-    "http://www.sonicvision.uno",
+    "https://api.sonicvision.uno",
 ]
 
 CSRF_COOKIE_NAME = 'csrftoken'
@@ -130,14 +126,13 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'api',
     'corsheaders',
-    'accounts',  # 確保你的認證應用已添加
-    'social_django',  # 添加 social-auth-app-django
-    'channels',  # 添加 Django Channels
+    'accounts',
+    'social_django',
+    'channels',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # 必須放在最前面
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -1,0 +1,19 @@
+[Unit]
+Description=gunicorn daemon
+Requires=gunicorn.socket
+After=network.target
+
+[Service]
+Type=notify
+User=root
+Group=www-data
+RuntimeDirectory=gunicorn
+WorkingDirectory=/var/www/sonicvision/backend
+ExecStart=/usr/bin/gunicorn config.wsgi:application --config /var/www/sonicvision/backend/gunicorn.conf.py
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target 

@@ -7,31 +7,12 @@ log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                 '$status $body_bytes_sent "$http_referer" '
                 '"$http_user_agent" "$http_x_forwarded_for"';
 
-# HTTP 重定向到 HTTPS
+# HTTP 服務器
 server {
-    listen 8080;
+    listen 80;
     server_name sonicvision.uno www.sonicvision.uno;
-    
-    # 重定向所有 HTTP 請求到 HTTPS
-    return 301 https://$host:8443$request_uri;
-}
-
-# HTTPS 服務器
-server {
-    listen 8443 ssl;
-    server_name sonicvision.uno www.sonicvision.uno;
-
-    # SSL 證書配置
-    ssl_certificate /etc/nginx/ssl/sonicvision.uno/cert.pem;
-    ssl_certificate_key /etc/nginx/ssl/sonicvision.uno/key.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
 
     # 安全標頭
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
@@ -120,6 +101,6 @@ server {
 
     # 根目錄響應
     location / {
-        return 301 https://sonicvision.uno$request_uri;
+        return 301 https://sonicvision-zeta.vercel.app$request_uri;
     }
 } 

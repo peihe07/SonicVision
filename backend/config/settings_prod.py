@@ -12,8 +12,6 @@ CORS_ALLOWED_ORIGINS = [
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
     "https://api.sonicvision.uno",
-    "https://sonicvision-git-version5-peiyus-projects-d68d7d18.vercel.app",
-    "https://sonicvision-zeta.vercel.app",
 ]
 
 # 允許的 CORS 方法
@@ -49,7 +47,6 @@ CORS_ALLOW_CREDENTIALS = True
 # 允許的 CORS 來源模式
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.sonicvision\.uno$",
-    r"^https://.*\.vercel\.app$",
 ]
 
 # CSRF 設置
@@ -57,8 +54,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://sonicvision.uno",
     "https://www.sonicvision.uno",
     "https://api.sonicvision.uno",
-    "https://sonicvision-git-version5-peiyus-projects-d68d7d18.vercel.app",
-    "https://sonicvision-zeta.vercel.app",
 ]
 
 # 資料庫設置

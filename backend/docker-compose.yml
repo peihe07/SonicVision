@@ -72,14 +72,20 @@ services:
     container_name: sonicvision-nginx
     restart: always
     ports:
-      - "8081:80"  # 使用 8081 端口
-      - "8444:443"  # 使用 8444 端口
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/sites-available:/etc/nginx/sites-available
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled
       - ./staticfiles:/var/www/sonicvision/staticfiles
       - ./media:/var/www/sonicvision/media
+      - /var/log/nginx:/var/log/nginx
+    environment:
+      - NGINX_HOST=sonicvision.uno
+      - NGINX_API_HOST=api.sonicvision.uno
     depends_on:
       - backend
     networks:

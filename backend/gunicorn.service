@@ -3,13 +3,13 @@ Description=SonicVision Gunicorn Service
 After=network.target
 
 [Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/sonicvision/backend
-Environment="PATH=/var/www/sonicvision/backend/.venv/bin"
-EnvironmentFile=/var/www/sonicvision/backend/.env.prod
-ExecStart=/var/www/sonicvision/backend/.venv/bin/gunicorn \
-    --config /var/www/sonicvision/backend/gunicorn.conf.py \
+User=root
+Group=root
+WorkingDirectory=/root/SonicVision/backend
+Environment="PATH=/root/SonicVision/backend/venv/bin"
+EnvironmentFile=/root/SonicVision/backend/.env
+ExecStart=/root/SonicVision/backend/venv/bin/gunicorn \
+    --config /root/SonicVision/backend/gunicorn.conf.py \
     config.wsgi:application
 
 # 日誌設置

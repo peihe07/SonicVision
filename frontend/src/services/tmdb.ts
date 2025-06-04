@@ -52,7 +52,7 @@ interface TMDBResponse {
     page: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sonicvision.uno/api';
 
 const tmdbClient = axios.create({
     baseURL: API_BASE_URL,
@@ -64,7 +64,7 @@ const tmdbClient = axios.create({
 
 export const getTrendingMovies = async (): Promise<Movie[]> => {
     try {
-        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/movies/trending/');
+        const response = await tmdbClient.get<TMDBResponse>('/tmdb/movies/trending/');
         return response.data.results.map(movie => ({
             id: movie.id,
             title: movie.title,
@@ -81,7 +81,7 @@ export const getTrendingMovies = async (): Promise<Movie[]> => {
 
 export const searchMovies = async (query: string, page = 1): Promise<{ results: Movie[]; total_pages: number }> => {
     try {
-        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/search-movies/', {
+        const response = await tmdbClient.get<TMDBResponse>('/tmdb/search-movies/', {
             params: { query, page }
         });
         return {
