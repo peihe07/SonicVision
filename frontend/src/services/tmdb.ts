@@ -64,7 +64,7 @@ const tmdbClient = axios.create({
 
 export const getTrendingMovies = async (): Promise<Movie[]> => {
     try {
-        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/trending-movies/');
+        const response = await tmdbClient.get<TMDBResponse>('/api/tmdb/movies/trending/');
         return response.data.results.map(movie => ({
             id: movie.id,
             title: movie.title,
