@@ -53,5 +53,8 @@ export default defineConfig({
                 drop_debugger: true
             }
         }
-    }
+    },
+    // 添加 Vercel 部署相關配置
+    base: '/',
+    publicDir: 'public'
 }) 
